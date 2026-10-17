@@ -81,7 +81,7 @@ flowchart TD
 
 Clone or extract the repository:
 ```bash
-git clone https://github.com/your-username/MotionGuard.git
+git clone https://github.com/vishalbhardwaj-source/MotionGuard.git
 cd MotionGuard
 ```
 
