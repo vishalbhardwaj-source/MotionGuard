@@ -1,0 +1,245 @@
+
+from src.interaction_analysis import analyze_interactions, bbox_iou
+from src.interaction_analysis import is_persistent_duplicate
+
+
+def make_records(first_positions, second_positions, times=(0.0, 0.1)):
+    records = []
+
+    for track_id, positions in (
+        (1, first_positions),
+        (2, second_positions),
+    ):
+        for frame_index, (timestamp, x) in enumerate(
+            zip(times, positions)
+        ):
+            records.append({
+                "frame_index": frame_index,
+                "timestamp_seconds": timestamp,
+                "track_id": track_id,
+                "center_xy": [x, 100.0],
+            })
+
+    return records
+
+
+
+def test_approaching_objects():
+    records = make_records(
+        [0, 10, 20, 30],
+        [100, 90, 80, 70],
+        times=(0.0, 0.1, 0.2, 0.3),
+    )
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+    )
+
+    assert len(findings) == 1, findings
+    assert findings[0]["finding"] == (
+        "POTENTIAL_APPROACHING_INTERACTION"
+    )
+    assert findings[0]["distance_px"] == 40.0
+    assert findings[0]["closing_speed_px_per_second"] == 200.0
+    assert findings[0]["timestamp_seconds"] == 0.3
+    print("PASS: approaching objects require persistent confirmation")
+
+
+
+def test_separating_objects():
+    records = make_records([10, 0], [90, 100])
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=120,
+        min_closing_speed_px_s=5,
+    )
+
+    assert findings == [], findings
+    print("PASS: separating objects are not flagged")
+
+
+def test_objects_too_far_apart():
+    records = make_records([0, 10], [200, 190])
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+    )
+
+    assert findings == [], findings
+    print("PASS: distant objects are not flagged")
+
+
+def test_stationary_objects():
+    records = make_records([10, 10], [60, 60])
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+    )
+
+    assert findings == [], findings
+    print("PASS: stationary objects are not flagged")
+
+
+
+def test_excluded_train_pair():
+    records = make_records([0, 10], [100, 90])
+
+    for record in records:
+        record["class_name"] = (
+            "car" if record["track_id"] == 1 else "train"
+        )
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+        excluded_classes=("train",),
+    )
+
+    assert findings == [], findings
+    print("PASS: car-train pairs are excluded")
+
+def test_insufficient_observations():
+    records = [
+        {
+            "frame_index": 0,
+            "timestamp_seconds": 0.0,
+            "track_id": 1,
+            "center_xy": [10.0, 100.0],
+        },
+        {
+            "frame_index": 0,
+            "timestamp_seconds": 0.0,
+            "track_id": 2,
+            "center_xy": [60.0, 100.0],
+        },
+    ]
+
+    findings = analyze_interactions(records)
+    assert findings == [], findings
+    print("PASS: insufficient observations produce no finding")
+
+
+
+def test_duplicate_bounding_boxes_are_filtered():
+    records = make_records(
+        [0, 10, 20],
+        [100, 90, 80],
+        times=(0.0, 0.1, 0.2),
+    )
+    for record in records:
+        record["bbox_xyxy"] = (
+            [10, 10, 110, 110]
+            if record["track_id"] == 1
+            else [10.1, 10.1, 110.1, 110.1]
+        )
+
+    assert bbox_iou(
+        [10, 10, 110, 110],
+        [10.1, 10.1, 110.1, 110.1],
+    ) >= 0.95
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+    )
+
+    assert findings == [], findings
+    print("PASS: near-identical bounding boxes are filtered")
+
+if __name__ == "__main__":
+    test_approaching_objects()
+    test_excluded_train_pair()
+    test_separating_objects()
+    test_objects_too_far_apart()
+    test_stationary_objects()
+    test_insufficient_observations()
+    test_duplicate_bounding_boxes_are_filtered()
+
+    print("\nAll interaction-analysis tests passed!")
+
+def test_same_class_duplicate_tracks_with_partial_overlap():
+    first_observations = [
+        {
+            "timestamp": timestamp,
+            "bbox_xyxy": [x, 100, x + 40, 140],
+        }
+        for timestamp, x in (
+            (0.0, 100),
+            (0.1, 102),
+            (0.2, 101),
+        )
+    ]
+
+    second_observations = [
+        {
+            "timestamp": timestamp,
+            "bbox_xyxy": [x, 100, x + 40, 140],
+        }
+        for timestamp, x in (
+            (0.0, 112),
+            (0.1, 114),
+            (0.2, 113),
+        )
+    ]
+
+    result = is_persistent_duplicate(
+        first_observations,
+        second_observations,
+        {"car"},
+        {"car"},
+        min_iou=0.50,
+        min_matches=3,
+        max_gap_seconds=0.2,
+    )
+
+    assert result is True, (
+        "Persistent same-class tracks with partial overlap "
+        "should be identified by the duplicate detector."
+    )
+
+
+def test_same_class_tracks_with_03853_iou():
+    first_observations = [
+        {
+            "timestamp": timestamp,
+            "bbox_xyxy": [1214.51, 41.86, 1235.08, 97.07],
+        }
+        for timestamp in (6.54, 6.573, 6.607)
+    ]
+
+    second_observations = [
+        {
+            "timestamp": timestamp,
+            "bbox_xyxy": [1221.77, 39.66, 1247.96, 97.18],
+        }
+        for timestamp in (6.54, 6.573, 6.607)
+    ]
+
+    overlap = bbox_iou(
+        first_observations[-1]["bbox_xyxy"],
+        second_observations[-1]["bbox_xyxy"],
+    )
+
+    print(f"Actual-case IoU: {overlap:.4f}")
+
+    result = is_persistent_duplicate(
+        first_observations,
+        second_observations,
+        {"person"},
+        {"person"},
+        min_iou=0.50,
+        min_matches=3,
+        max_gap_seconds=0.2,
+    )
+
+    print(f"Duplicate filter result: {result}")
+
