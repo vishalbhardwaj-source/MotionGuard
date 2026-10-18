@@ -64,6 +64,135 @@ def save_frame(video_path, timestamp_seconds, output_path):
         cap.release()
 
 
+def extract_and_annotate_event_evidence(
+    video_path,
+    event,
+    trajectory_records=None,
+    output_path=None,
+):
+    """
+    Extract the exact video frame at the event timestamp and draw visual annotations.
+    Places a clean semi-transparent HUD at the bottom to avoid obscuring vehicles.
+    """
+    path = Path(video_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Video file not found: {path}")
+
+    timestamp = event.get("evidence_timestamp_seconds")
+    if timestamp is None:
+        timestamp = event.get("minimum_distance_timestamp_seconds", event.get("start_seconds", 0.0))
+
+    try:
+        ts = max(0.0, float(timestamp))
+    except (ValueError, TypeError):
+        ts = 0.0
+
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video: {path}")
+
+    try:
+        cap.set(cv2.CAP_PROP_POS_MSEC, ts * 1000)
+        ret, frame = cap.read()
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_MSEC, 0)
+            ret, frame = cap.read()
+            if not ret:
+                raise ValueError("Could not read frame from video.")
+
+        height, width = frame.shape[:2]
+        track_ids = set(event.get("track_ids", []))
+
+        # Highlight bounding boxes for involved tracks at this timestamp
+        if trajectory_records and track_ids:
+            for tid in sorted(track_ids):
+                matching = [
+                    r for r in trajectory_records
+                    if r.get("track_id") == tid
+                    and abs(float(r.get("timestamp_seconds", -999)) - ts) <= 0.45
+                ]
+                if not matching:
+                    continue
+                best_r = min(matching, key=lambda r: abs(float(r.get("timestamp_seconds", 0)) - ts))
+                bbox = best_r.get("bbox_xyxy")
+                if bbox and len(bbox) == 4:
+                    x1, y1, x2, y2 = [int(round(v)) for v in bbox]
+                    x1 = max(0, min(width - 1, x1))
+                    x2 = max(0, min(width - 1, x2))
+                    y1 = max(0, min(height - 1, y1))
+                    y2 = max(0, min(height - 1, y2))
+                    cls_name = best_r.get("class_name", "vehicle")
+
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 230), 2)
+                    label = f"TRACK {tid} ({cls_name})"
+                    label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
+                    lbl_w = label_size[0] + 8
+                    lbl_h = label_size[1] + 8
+                    lbl_y1 = max(0, y1 - lbl_h)
+                    lbl_y2 = y1 if lbl_y1 < y1 else y1 + lbl_h
+                    cv2.rectangle(frame, (x1, lbl_y1), (x1 + lbl_w, lbl_y2), (0, 0, 230), -1)
+                    cv2.putText(
+                        frame,
+                        label,
+                        (x1 + 4, lbl_y2 - 4),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.48,
+                        (255, 255, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+        # Draw clean, non-intrusive bottom HUD overlay (semi-transparent)
+        hud_height = min(75, int(height * 0.12))
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (0, height - hud_height), (width, height), (15, 23, 42), -1)
+        cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, frame)
+
+        event_id = event.get("event_id", "EVENT")
+        min_dist = event.get("minimum_distance_px", "N/A")
+        closing = event.get("peak_closing_speed_px_per_second", "N/A")
+
+        dist_str = f"{min_dist:.1f} px" if isinstance(min_dist, (int, float)) else str(min_dist)
+        closing_str = f"{closing:.1f} px/s" if isinstance(closing, (int, float)) else str(closing)
+
+        title_text = f"{event_id} | CLOSEST APPROACH: {ts:.2f}s | Min Separation: {dist_str}"
+        detail_text = f"Peak Closing Speed: {closing_str} | Involved Tracks: {list(track_ids)}"
+
+        cv2.putText(
+            frame,
+            title_text,
+            (18, height - int(hud_height * 0.55)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.62,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            detail_text,
+            (18, height - int(hud_height * 0.20)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.50,
+            (203, 213, 225),
+            1,
+            cv2.LINE_AA,
+        )
+
+        if output_path is None:
+            output_dir = Path("outputs/evidence")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{event_id}_evidence.jpg"
+
+        out_file = Path(output_path)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(out_file), frame)
+        return str(out_file)
+    finally:
+        cap.release()
+
+
+
 
 def track_video(
     video_path,

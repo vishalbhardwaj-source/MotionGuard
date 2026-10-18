@@ -31,6 +31,40 @@ def test_automated_pipeline_simulator(tmp_path):
     assert first_incident["dispatch_result"]["channel"] == "SMS_DISPATCH_SIMULATOR"
 
 
+def test_extract_and_annotate_event_evidence(tmp_path):
+    from src.video_processor import extract_and_annotate_event_evidence
+    video_path = Path("data/videos/normal.mp4")
+    if not video_path.is_file():
+        pytest.skip("normal.mp4 demo video not available.")
+
+    event = {
+        "event_id": "TEST-EVT-01",
+        "evidence_timestamp_seconds": 1.0,
+        "track_ids": [1],
+        "minimum_distance_px": 50.0,
+        "peak_closing_speed_px_per_second": 20.0,
+    }
+    dummy_trajectories = [
+        {
+            "frame_index": 30,
+            "timestamp_seconds": 1.0,
+            "track_id": 1,
+            "class_name": "car",
+            "bbox_xyxy": [100.0, 100.0, 200.0, 200.0],
+        }
+    ]
+    out_file = tmp_path / "test_annotated_frame.jpg"
+    result_path = extract_and_annotate_event_evidence(
+        video_path=video_path,
+        event=event,
+        trajectory_records=dummy_trajectories,
+        output_path=out_file,
+    )
+
+    assert Path(result_path).is_file()
+    assert Path(result_path).stat().st_size > 1000
+
+
 if __name__ == "__main__":
     test_automated_pipeline_simulator(Path("."))
     print("Automated incident pipeline tests passed!")

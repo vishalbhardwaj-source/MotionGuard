@@ -9,6 +9,8 @@ from ultralytics import YOLO
 
 from src.risk_engine import assess_risk, assess_event_risk
 from src.trajectory_analysis import analyze_trajectories
+from src.interaction_analysis import analyze_interactions
+from src.event_aggregation import aggregate_interaction_events
 from src.reporting import create_incident_report
 from src.pdf_report import create_interaction_pdf
 from src.video_processor import (
@@ -16,6 +18,7 @@ from src.video_processor import (
     save_frame,
     inspect_video,
     create_event_clip,
+    extract_and_annotate_event_evidence,
 )
 from src.alert_dispatcher import (
     format_emergency_sms,
@@ -158,8 +161,10 @@ INTERACTION_EVENTS_PATH = OUTPUT_DIR / "interaction_events_test.jsonl"
 INTERACTION_EVIDENCE_DIR = OUTPUT_DIR / "event_evidence_test"
 
 def read_interaction_events():
-    events = []
+    if "interaction_events" in st.session_state and st.session_state["interaction_events"]:
+        return st.session_state["interaction_events"]
 
+    events = []
     if INTERACTION_EVENTS_PATH.exists():
         with INTERACTION_EVENTS_PATH.open("r", encoding="utf-8") as file:
             for line in file:
@@ -169,6 +174,81 @@ def read_interaction_events():
                     continue
 
     return events
+
+
+def get_event_evidence_image(event, active_video=None, trajectory_records=None):
+    """
+    Retrieve or dynamically extract high-fidelity, annotated visual evidence
+    for an event from the active video footage.
+    """
+    if not event:
+        return None
+    event_id = event.get("event_id", "EVENT")
+    ts = event.get("evidence_timestamp_seconds")
+    if ts is None:
+        ts = event.get("minimum_distance_timestamp_seconds", event.get("start_seconds", 0.0))
+    ts_key = int(round(float(ts) * 100))
+    target_evidence_path = EVIDENCE_DIR / f"{event_id}_ts{ts_key}_evidence.jpg"
+
+    if target_evidence_path.is_file():
+        return str(target_evidence_path)
+
+    # Determine video source
+    video_to_use = None
+    candidates = [
+        active_video,
+        Path("data/uploaded_demo.mp4"),
+        st.session_state.get("processed_video"),
+        VIDEO_PATH,
+    ]
+    for cand in candidates:
+        if cand and Path(cand).is_file():
+            video_to_use = str(cand)
+            break
+
+    records = trajectory_records or st.session_state.get("trajectory_records")
+    if not records:
+        for traj_candidate in [
+            OUTPUT_DIR / "uploaded_trajectories.jsonl",
+            OUTPUT_DIR / "trajectories_trails_test.jsonl",
+        ]:
+            if traj_candidate.is_file():
+                try:
+                    loaded = []
+                    with traj_candidate.open("r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.strip():
+                                loaded.append(json.loads(line))
+                    if loaded:
+                        records = loaded
+                        break
+                except Exception:
+                    pass
+
+    if video_to_use:
+        try:
+            generated = extract_and_annotate_event_evidence(
+                video_path=video_to_use,
+                event=event,
+                trajectory_records=records,
+                output_path=target_evidence_path,
+            )
+            if Path(generated).is_file():
+                return str(generated)
+        except Exception:
+            pass
+
+    # Check fallbacks
+    for fallback in [
+        EVIDENCE_DIR / f"{event_id}_evidence.jpg",
+        EVIDENCE_DIR / f"{event_id}_evidence.png",
+        INTERACTION_EVIDENCE_DIR / f"{event_id}.jpg",
+        EVIDENCE_PATH,
+    ]:
+        if fallback.is_file():
+            return str(fallback)
+
+    return None
 
 
 # Inject custom CSS for sleek dashboard cards and badges
@@ -548,14 +628,12 @@ with interaction_tab:
                 event_risk = assess_event_risk(event)
                 render_explainable_risk_card(event_risk, title=f"Explainable Risk Breakdown ({event_id})")
 
-                evidence_path = (
-                    INTERACTION_EVIDENCE_DIR / f"{event_id}.jpg"
-                )
+                evidence_img = get_event_evidence_image(event)
 
-                if evidence_path.exists():
+                if evidence_img and Path(evidence_img).exists():
                     st.image(
-                        str(evidence_path),
-                        caption=f"Evidence frame for {event_id}",
+                        str(evidence_img),
+                        caption=f"Evidence frame for {event_id} ({event.get('evidence_timestamp_seconds', 0):.2f}s)",
                         use_container_width=True,
                     )
                 else:
@@ -1008,6 +1086,8 @@ with video_tab:
                     camera_name="Highway Surveillance Cam #04",
                 )
                 st.session_state["latest_pipeline_run"] = pipe_res
+                if pipe_res.get("events"):
+                    st.session_state["interaction_events"] = pipe_res["events"]
                 if pipe_res.get("success"):
                     st.balloons()
                     st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
@@ -1186,6 +1266,8 @@ with video_tab:
                         camera_name="Uploaded Traffic Stream",
                     )
                     st.session_state["latest_pipeline_run"] = pipe_res
+                    if pipe_res.get("events"):
+                        st.session_state["interaction_events"] = pipe_res["events"]
                     if pipe_res.get("critical_incidents_count", 0) > 0:
                         st.balloons()
                         st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
@@ -1224,6 +1306,21 @@ with video_tab:
                 "distinct_track_ids_observed": len({r["track_id"] for r in records}),
                 "duration_seconds": 10.0,
             }
+            if "interaction_events" not in st.session_state:
+                try:
+                    norm_recs = []
+                    for r in records:
+                        rec = dict(r)
+                        if "center_xy" not in rec and "bbox_xyxy" in rec:
+                            x1, y1, x2, y2 = rec["bbox_xyxy"]
+                            rec["center_xy"] = [(x1 + x2) / 2, (y1 + y2) / 2]
+                        norm_recs.append(rec)
+                    fnds = analyze_interactions(norm_recs)
+                    evts = aggregate_interaction_events(fnds)
+                    if evts:
+                        st.session_state["interaction_events"] = evts
+                except Exception:
+                    pass
 
     processed_video = st.session_state.get("processed_video")
     tracking_result = st.session_state.get("tracking_result")
@@ -1527,9 +1624,8 @@ with authority_tab:
         }
 
 
-        pdf_evidence_path = (
-            INTERACTION_EVIDENCE_DIR / f"{event_id}.jpg"
-        )
+        evidence_img_path = get_event_evidence_image(selected_event)
+        pdf_evidence_path = evidence_img_path
 
         try:
             pdf_bytes = create_interaction_pdf(
@@ -1562,13 +1658,10 @@ with authority_tab:
             selected_event.get("detection_count", 0),
         )
 
-        evidence_path = (
-            INTERACTION_EVIDENCE_DIR / f"{event_id}.jpg"
-        )
-        if evidence_path.exists():
+        if evidence_img_path and Path(evidence_img_path).exists():
             st.image(
-                str(evidence_path),
-                caption=f"Evidence for {event_id}",
+                str(evidence_img_path),
+                caption=f"Forensic Evidence Frame · {event_id} ({selected_event.get('evidence_timestamp_seconds', 0):.2f}s)",
                 use_container_width=True,
             )
         else:

@@ -8,7 +8,7 @@ from src.risk_engine import assess_event_risk
 from src.reporting import create_incident_report
 from src.pdf_report import create_interaction_pdf
 from src.alert_dispatcher import format_emergency_sms, dispatch_sms, log_sms_dispatch
-from src.video_processor import save_frame
+from src.video_processor import save_frame, extract_and_annotate_event_evidence
 
 
 OUTPUT_DIR = Path("outputs")
@@ -133,14 +133,21 @@ def run_automated_incident_pipeline(
         risk_result = assess_event_risk(event)
 
         # 4b. Extract visual evidence snapshot
-        evidence_image_path = EVIDENCE_DIR / f"{event_id}_evidence.png"
+        evidence_image_path = EVIDENCE_DIR / f"{event_id}_evidence.jpg"
         try:
-            save_frame(video_file, timestamp, evidence_image_path)
-            valid_evidence = str(evidence_image_path)
+            valid_evidence = extract_and_annotate_event_evidence(
+                video_path=video_file,
+                event=event,
+                trajectory_records=records,
+                output_path=evidence_image_path,
+            )
         except Exception:
-            # Fallback to existing sample evidence if extraction fails
-            fallback_evidence = OUTPUT_DIR / "evidence" / "test_frame.png"
-            valid_evidence = str(fallback_evidence) if fallback_evidence.is_file() else str(video_file)
+            try:
+                save_frame(video_file, timestamp, evidence_image_path)
+                valid_evidence = str(evidence_image_path)
+            except Exception:
+                fallback_evidence = OUTPUT_DIR / "evidence" / "test_frame.png"
+                valid_evidence = str(fallback_evidence) if fallback_evidence.is_file() else str(video_file)
 
         # 4c. Create official incident report in incidents.jsonl
         report = create_incident_report(
@@ -199,4 +206,5 @@ def run_automated_incident_pipeline(
         "critical_incidents_count": len(incidents_created),
         "incidents_created": incidents_created,
         "dispatches": dispatches,
+        "events": events,
     }
