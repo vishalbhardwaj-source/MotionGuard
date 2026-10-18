@@ -16,6 +16,8 @@ from reportlab.platypus import (
     HRFlowable,
 )
 
+from src.risk_engine import assess_event_risk
+
 
 def create_interaction_pdf(event, evidence_path=None):
     """Create a comprehensive, courtroom-ready PDF for a MotionGuard interaction event."""
@@ -184,10 +186,49 @@ def create_interaction_pdf(event, evidence_path=None):
         )
     )
 
-    story.extend([table, Spacer(1, 5 * mm)])
+    story.extend([table, Spacer(1, 4 * mm)])
+
+    # Explainable Risk Breakdown Section
+    story.append(Paragraph("3. Explainable Risk Factor Breakdown", heading_style))
+    story.append(
+        Paragraph(
+            "Algorithmic decision-support factors explaining how the system characterized event risk:",
+            styles["BodyText"],
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
+
+    risk_eval = assess_event_risk(event)
+    factor_rows = [["Evaluation Factor", "Algorithmic Finding", "Investigation Rationale & Sensor Context"]]
+    for f in risk_eval.get("factor_breakdown", []):
+        factor_rows.append([
+            Paragraph(f"<b>{f.get('factor', '')}</b>", styles["BodyText"]),
+            Paragraph(f"<b>{f.get('display_status', '')}</b>", styles["BodyText"]),
+            Paragraph(f.get("detail", ""), styles["BodyText"]),
+        ])
+
+    factor_table = Table(factor_rows, colWidths=[48 * mm, 32 * mm, 94 * mm], repeatRows=1)
+    factor_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#334155")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 8.5),
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E1")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.extend([factor_table, Spacer(1, 4 * mm)])
 
     # Evidence Image Section
-    story.append(Paragraph("3. Supporting Visual Evidence", heading_style))
+    story.append(Paragraph("4. Supporting Visual Evidence", heading_style))
     if evidence_path and Path(evidence_path).is_file():
         story.extend(
             [
@@ -209,7 +250,7 @@ def create_interaction_pdf(event, evidence_path=None):
         )
 
     # Limitations & Next Steps
-    story.append(Paragraph("4. Technical Limitations & Required Next Steps", heading_style))
+    story.append(Paragraph("5. Technical Limitations & Required Next Steps", heading_style))
     limitations = event.get("limitations", [])
     if not limitations:
         limitations = [

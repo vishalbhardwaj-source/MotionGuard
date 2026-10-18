@@ -41,7 +41,7 @@ def test_simulated_dispatch(tmp_path):
         "peak_closing_speed_px_per_second": 19.5,
     }
     msg = format_emergency_sms(mock_event)
-    result = dispatch_sms("+919876543210", msg)
+    result = dispatch_sms("+919876543210", msg, gateway_mode="SIMULATOR")
     assert result["success"] is True
     assert result["channel"] == "SMS_DISPATCH_SIMULATOR"
     assert result["recipient"] == "+919876543210"

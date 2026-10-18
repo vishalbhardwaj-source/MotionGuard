@@ -55,6 +55,7 @@ def create_incident_report(
         "speed_source": risk_result["speed_source"],
         "overspeed_ratio": risk_result["overspeed_ratio"],
         "reasons": risk_result["reasons"],
+        "factor_breakdown": risk_result.get("factor_breakdown", []),
 
         "event_source": event_source,
         "track_id": track_id,
