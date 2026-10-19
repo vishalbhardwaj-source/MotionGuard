@@ -347,15 +347,6 @@ def render_explainable_risk_card(risk_data, title="Explainable Risk Factor Break
                 unsafe_allow_html=True,
             )
 
-    with st.expander("⚖️ Why it matters: Evaluator & Judge Audit Rationale"):
-        st.markdown(
-            """
-            - **No Black Boxes**: Instead of an opaque score (e.g. *CRITICAL — 100/100*), each contributing factor surfaces its exact algorithmic status.
-            - **Honest Limitations**: Monocular CCTV lacks physical depth telemetry; the engine reports `Rapid approach: insufficient data` or `Collision confirmation: unavailable` when sensors cannot legally verify physical impact.
-            - **Human-in-the-Loop Triage**: High-threat flags serve as actionable decision support for traffic authorities rather than ungrounded legal declarations.
-            """
-        )
-
 
 st.title("🚦 MotionGuard")
 st.caption(
