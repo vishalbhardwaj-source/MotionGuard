@@ -187,10 +187,10 @@ def run_automated_incident_pipeline(
                 camera_name=camera_name,
                 camera_id="CAM-01",
                 incident_type="CRITICAL VEHICLE ACCIDENT / COLLISION DETECTED",
+                incident_id=report["incident_id"],
+                threat_level=risk_result["threat_level"],
+                threat_score=risk_result["threat_score"],
             )
-            # Add live incident ID and dossier notice
-            sms_text += f"\nIncident ID: {report['incident_id']}"
-            sms_text += f"\nThreat Level: {risk_result['threat_level']} ({risk_result['threat_score']}/100)"
 
             dispatch_res = dispatch_sms(
                 phone_number=recipient_phone,

@@ -1,5 +1,6 @@
 import datetime
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -31,27 +32,54 @@ def format_emergency_sms(
     event,
     camera_name="Highway North - Sector 4",
     camera_id="CAM-01",
-    location_details="Mile Marker 14.2 / Sector 4",
-    incident_type="POTENTIAL ACCIDENT / HIGH-RISK INTERACTION",
+    location_details=None,
+    incident_type=None,
+    incident_id=None,
+    threat_level=None,
+    threat_score=None,
 ):
     """
-    Format a structured emergency dispatch message for traffic authorities and first responders.
-    Includes incident ID, camera ID, geographic location, video timestamps, and kinematics.
+    Format a highly structured, operational emergency dispatch alert for traffic authorities,
+    first responders, and Telegram/SMS command channels.
     """
     event_id = event.get("event_id", "EVT-UNKNOWN")
+    inc_id = incident_id or event.get("incident_id") or event_id
+
+    # Threat assessment & level
+    level = threat_level or event.get("threat_level", "HIGH")
+    score = threat_score if threat_score is not None else event.get("threat_score")
+    score_str = f" ({score}/100)" if score is not None else ""
+
+    emoji_map = {
+        "CRITICAL": "🔴",
+        "VERY HIGH": "🟠",
+        "HIGH": "🟡",
+        "ELEVATED": "🔵",
+        "LOW": "🟢",
+    }
+    sev_emoji = emoji_map.get(str(level).upper(), "⚠️")
+
+    # Timestamp
     timestamp = event.get("evidence_timestamp_seconds")
     if timestamp is None:
         timestamp = event.get("minimum_distance_timestamp_seconds", event.get("start_seconds", 0.0))
 
     try:
-        time_str = f"{float(timestamp):.2f}s"
+        ts_val = float(timestamp)
+        mins = int(ts_val // 60)
+        secs = ts_val % 60
+        time_str = f"{mins:02d}:{secs:05.2f}s ({ts_val:.2f}s)"
     except (ValueError, TypeError):
-        time_str = str(timestamp)
+        time_str = f"{timestamp}s"
 
     tracks = event.get("track_ids", [])
     track_str = ", ".join(map(str, tracks)) if tracks else "Unconfirmed"
+
+    # Kinematics
     min_dist = event.get("minimum_distance_px", "N/A")
     closing_speed = event.get("peak_closing_speed_px_per_second", "N/A")
+    ttc = event.get("minimum_ttc_seconds") or event.get("time_to_collision_seconds")
+    norm_dist = event.get("minimum_normalized_distance") or event.get("normalized_distance")
 
     if isinstance(min_dist, (int, float)):
         min_dist_str = f"{min_dist:.1f}px"
@@ -63,14 +91,38 @@ def format_emergency_sms(
     else:
         closing_speed_str = str(closing_speed)
 
+    loc_header = f"{camera_name}"
+    if location_details and location_details not in camera_name:
+        loc_header += f" ({location_details})"
+    if camera_id and camera_id not in loc_header:
+        loc_header += f" [{camera_id}]"
+
+    kinematics_items = [
+        f"   • Min Separation: {min_dist_str}",
+        f"   • Peak Closing Speed: {closing_speed_str}",
+    ]
+    if norm_dist is not None and isinstance(norm_dist, (int, float)):
+        kinematics_items.append(f"   • Scale-Normalized Dist: {norm_dist:.2f}x bbox")
+    if ttc is not None and isinstance(ttc, (int, float)) and math.isfinite(ttc):
+        kinematics_items.append(f"   • Time-to-Collision (TTC): {ttc:.2f}s")
+    kinematics_text = "\n".join(kinematics_items)
+
+    type_header = f" [{incident_type}]" if incident_type else ""
+
     message = (
-        f"🚨 MOTIONGUARD EMERGENCY DISPATCH ALERT 🚨\n"
-        f"Incident: {event_id} ({incident_type})\n"
-        f"Camera ID: {camera_id} | Location: {camera_name} ({location_details})\n"
-        f"Video Timestamp: {time_str}\n"
-        f"Involved Tracks: {track_str}\n"
-        f"Kinematics: Closest Sep {min_dist_str} | Peak Closing {closing_speed_str}\n"
-        f"Action: Forensic decision-support candidate flagged for immediate operator review at http://localhost:8501"
+        f"🚨 [MOTIONGUARD ALERT] Incident Triage{type_header}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🆔 Incident ID: {inc_id}  |  Event: {event_id}\n"
+        f"⚠️ Threat Level: {sev_emoji} {level}{score_str}\n"
+        f"📍 Location: {loc_header}\n"
+        f"⏱️ Video Timestamp: {time_str}\n\n"
+        f"🚗 Involved Tracks: {track_str}\n"
+        f"⚡ Kinematic Telemetry:\n"
+        f"{kinematics_text}\n\n"
+        f"📋 Action Required:\n"
+        f"Forensic decision-support candidate flagged for operator triage.\n"
+        f"🔗 Live Workstation Dossier: http://localhost:8501\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     return message
 
@@ -273,7 +325,7 @@ def dispatch_sms(
 
 
 def log_sms_dispatch(dispatch_result, log_path="outputs/sms_dispatches.jsonl"):
-    """Persist SMS dispatch audit trail to JSONL."""
+    """Persist SMS dispatch audit trail to JSONL and SQLite."""
     path = Path(log_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as file:

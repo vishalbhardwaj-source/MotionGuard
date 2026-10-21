@@ -968,8 +968,10 @@ with scenario_tab:
                                 "peak_closing_speed_px_per_second": round(risk["speed_kmh"] * 0.277, 1),
                             },
                             incident_type="CONFIRMED / FLAGGED ACCIDENT",
+                            incident_id=report["incident_id"],
+                            threat_level=risk["threat_level"],
+                            threat_score=risk["threat_score"],
                         )
-                        sms_text += f"\nThreat Level: {risk['threat_level']} ({risk['threat_score']}/100)"
                         chosen_mode = "TELEGRAM" if "Telegram" in tab3_gw else ("TWILIO" if "Twilio" in tab3_gw else "SIMULATOR")
                         sms_res = dispatch_sms(alert_phone, sms_text, gateway_mode=chosen_mode)
                         log_sms_dispatch(sms_res)
@@ -2081,7 +2083,14 @@ with authority_tab:
                     key=f"tg_chat_{event_id}",
                 )
 
-        sms_body = format_emergency_sms(selected_event, camera_name=camera_loc)
+        event_risk = assess_event_risk(selected_event)
+        sms_body = format_emergency_sms(
+            selected_event,
+            camera_name=camera_loc,
+            incident_id=selected_event.get("incident_id") or selected_event.get("event_id"),
+            threat_level=event_risk.get("threat_level"),
+            threat_score=event_risk.get("threat_score"),
+        )
 
         with sms_c2:
             st.markdown("**Smartphone Alert Payload Preview:**")
