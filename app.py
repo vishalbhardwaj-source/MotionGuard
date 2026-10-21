@@ -2156,17 +2156,17 @@ with dossier_tab:
                 selected_mode = "TWILIO" if "Twilio" in sms_gateway else ("TELEGRAM" if "Telegram" in sms_gateway else "SIMULATOR")
                 if selected_mode != "SIMULATOR" and (not is_operator_authenticated or not confirm_live_dispatch):
                     st.error("Operator authentication and confirmation required for live external dispatch.")
-                    return
-                dispatch_res = dispatch_sms(
-                    phone_number=dest_phone,
-                    message_text=sms_body,
-                    twilio_sid=twilio_sid,
-                    twilio_token=twilio_token,
-                    twilio_from=twilio_from,
-                    telegram_token=tg_token,
-                    telegram_chat_id=tg_chat,
-                    gateway_mode=selected_mode,
-                )
+                else:
+                    dispatch_res = dispatch_sms(
+                        phone_number=dest_phone,
+                        message_text=sms_body,
+                        twilio_sid=twilio_sid,
+                        twilio_token=twilio_token,
+                        twilio_from=twilio_from,
+                        telegram_token=tg_token,
+                        telegram_chat_id=tg_chat,
+                        gateway_mode=selected_mode,
+                    )
                 log_sms_dispatch(dispatch_res)
                 if dispatch_res.get("success"):
                     st.success(
