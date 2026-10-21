@@ -50,15 +50,19 @@ def run_automated_incident_pipeline(
     # Step 1: Load or derive trajectory records
     records = trajectory_records
     if not records:
-        traj_file = OUTPUT_DIR / "uploaded_trajectories.jsonl"
-        if not traj_file.exists():
-            traj_file = OUTPUT_DIR / "trajectories_trails_test.jsonl"
-        if traj_file.exists():
-            records = []
-            with traj_file.open("r", encoding="utf-8") as file:
-                for line in file:
-                    if line.strip():
-                        records.append(json.loads(line))
+        for candidate in (
+            OUTPUT_DIR / "uploaded_trajectories.jsonl",
+            OUTPUT_DIR / "trajectories_trails_test.jsonl",
+            Path("data/sample_trajectories.jsonl"),
+        ):
+            if candidate.exists():
+                records = []
+                with candidate.open("r", encoding="utf-8") as file:
+                    for line in file:
+                        if line.strip():
+                            records.append(json.loads(line))
+                if records:
+                    break
 
     if not records:
         return {
