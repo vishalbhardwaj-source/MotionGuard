@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+from src.zones import find_zone_for_point, get_contextual_threshold_multiplier
 
 
 def bbox_iou(box_a, box_b):
@@ -191,6 +192,9 @@ def analyze_interactions(
     min_consecutive_matches=3,
     max_ttc_seconds=None,
     max_normalized_distance=None,
+    zones=None,
+    min_iou_contact=None,
+    deceleration_post_impact_threshold=None,
 ):
     """
     Flag candidate interactions between tracked vehicles using scale-normalized
@@ -214,6 +218,18 @@ def analyze_interactions(
 
     if max_gap_seconds == 0:
         raise ValueError("max_gap_seconds must be positive.")
+
+    if min_iou_contact is None or deceleration_post_impact_threshold is None:
+        try:
+            from src.config import load_config
+            k_cfg = load_config().get("kinematics", {})
+            if min_iou_contact is None:
+                min_iou_contact = k_cfg.get("min_iou_contact", 0.05)
+            if deceleration_post_impact_threshold is None:
+                deceleration_post_impact_threshold = k_cfg.get("deceleration_post_impact_threshold", 0.50)
+        except Exception:
+            min_iou_contact = min_iou_contact if min_iou_contact is not None else 0.05
+            deceleration_post_impact_threshold = deceleration_post_impact_threshold if deceleration_post_impact_threshold is not None else 0.50
 
     if (
         isinstance(min_consecutive_matches, bool)
@@ -366,7 +382,13 @@ def analyze_interactions(
                 dy = second["center"][1] - first["center"][1]
                 distance = math.hypot(dx, dy)
 
-                if distance == 0 or distance > proximity_threshold_px:
+                # Contextual Zone modulation
+                zone_1 = find_zone_for_point(first["center"], zones) if zones else None
+                zone_2 = find_zone_for_point(second["center"], zones) if zones else None
+                zone_mult, zone_ctx = get_contextual_threshold_multiplier(zone_1, zone_2) if zones else (1.0, "UNZONED")
+                effective_proximity_px = proximity_threshold_px * zone_mult
+
+                if distance == 0 or distance > effective_proximity_px:
                     consecutive_matches = 0
                     previous_timestamp = None
                     continue
@@ -404,9 +426,10 @@ def analyze_interactions(
                         continue
 
                 # Confirmation requires consecutive qualifying timestamps
+                prior_timestamp = previous_timestamp
                 if (
-                    previous_timestamp is not None
-                    and timestamp - previous_timestamp <= max_gap_seconds
+                    prior_timestamp is not None
+                    and timestamp - prior_timestamp <= max_gap_seconds
                 ):
                     consecutive_matches += 1
                 else:
@@ -417,18 +440,22 @@ def analyze_interactions(
                 if consecutive_matches < min_consecutive_matches:
                     continue
 
-                # Post-impact kinematic signal detection
-                signals_1 = detect_post_impact_kinematics(observations[first_id], timestamp) or []
-                signals_2 = detect_post_impact_kinematics(observations[second_id], timestamp) or []
+                # Post-impact kinematic signal detection using configured deceleration threshold
+                signals_1 = detect_post_impact_kinematics(
+                    observations[first_id], timestamp, drop_ratio=deceleration_post_impact_threshold
+                ) or []
+                signals_2 = detect_post_impact_kinematics(
+                    observations[second_id], timestamp, drop_ratio=deceleration_post_impact_threshold
+                ) or []
                 combined_signals = list(set(signals_1 + signals_2))
 
-                # Optical Tau TTC calculation if consecutive boxes exist
+                # Optical Tau TTC calculation if consecutive boxes exist (using prior_timestamp)
                 tau_a = float("inf")
                 tau_b = float("inf")
-                if previous_timestamp is not None:
-                    prev_first = first_by_time.get(previous_timestamp)
-                    prev_second = second_by_time.get(previous_timestamp)
-                    p_dt = timestamp - previous_timestamp
+                if prior_timestamp is not None:
+                    prev_first = first_by_time.get(prior_timestamp)
+                    prev_second = second_by_time.get(prior_timestamp)
+                    p_dt = timestamp - prior_timestamp
                     if prev_first and p_dt > 0:
                         tau_a = calculate_monocular_scale_ttc(box_a, prev_first.get("bbox_xyxy"), p_dt)
                     if prev_second and p_dt > 0:
@@ -447,6 +474,9 @@ def analyze_interactions(
                     "normalized_distance": round(norm_dist, 2) if norm_dist is not None else None,
                     "bbox_iou": round(current_iou, 3),
                     "post_impact_signals": combined_signals,
+                    "zone_context": zone_ctx if zones else None,
+                    "zone_multiplier": zone_mult if zones else 1.0,
+                    "zone_name_primary": zone_1.name if zone_1 else None,
                     "finding": "POTENTIAL_APPROACHING_INTERACTION",
                     "confidence": "UNVALIDATED_HEURISTIC",
                     "limitations": [

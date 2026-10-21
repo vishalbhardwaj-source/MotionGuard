@@ -1,0 +1,25 @@
+{
+  "normal.mp4": {
+    "video_path": "data/videos/normal.mp4",
+    "duration_seconds": 23.89,
+    "fps": 30.0,
+    "source_type": "HIGHWAY_SAFE_FLOW",
+    "description": "Baseline multi-lane highway traffic clip with active lane changes and merging maneuvers.",
+    "crashes": []
+  },
+  "crash_demo.mp4": {
+    "video_path": "data/videos/crash_demo.mp4",
+    "duration_seconds": 10.5,
+    "fps": 60.0,
+    "source_type": "HIGHWAY_REAR_END_COLLISION",
+    "description": "Demonstration highway rear-end collision sequence with physical contact onset.",
+    "crashes": [
+      {
+        "start_s": 5.2,
+        "end_s": 6.5,
+        "label": "rear-end impact",
+        "severity": "CRITICAL"
+      }
+    ]
+  }
+}

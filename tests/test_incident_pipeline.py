@@ -3,7 +3,16 @@ from pathlib import Path
 from src.incident_pipeline import run_automated_incident_pipeline
 
 
-def test_automated_pipeline_simulator(tmp_path):
+def test_automated_pipeline_simulator(tmp_path, monkeypatch):
+    import src.reporting
+    import src.alert_dispatcher
+    import src.incident_pipeline
+
+    monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(src.alert_dispatcher, "DISPATCH_LOG_PATH", tmp_path / "sms_dispatches.jsonl")
+    monkeypatch.setattr(src.incident_pipeline, "INTERACTION_EVENTS_PATH", tmp_path / "events.jsonl")
+    monkeypatch.setattr(src.incident_pipeline, "DOSSIERS_DIR", tmp_path / "incident_dossiers")
+
     video_path = Path("data/videos/normal.mp4")
     if not video_path.is_file():
         pytest.skip("normal.mp4 demo video not available for integration test.")

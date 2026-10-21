@@ -6,7 +6,10 @@ from src.risk_engine import assess_risk
 from src.reporting import create_incident_report
 
 
-def test_create_incident_report(tmp_path):
+def test_create_incident_report(tmp_path, monkeypatch):
+    import src.reporting
+    monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+
     risk = assess_risk(
         speed_kmh=80,
         speed_limit_kmh=50,

@@ -61,23 +61,22 @@ ehthumbs.db
 *.bak*
 *.backup
 
-# Large intermediate test video artifacts (keep web demo video)
-outputs/*.mp4
-!outputs/uploaded_tracked_web.mp4
-
-# PyTorch weights & YOLO model checkpoints (downloaded dynamically via scripts/download_model.py)
+# Model weights
 *.pt
 yolo11n.pt
-
 
 # SQLite databases
 *.db
 *.db-wal
 *.db-shm
 
-# Ephemeral runtime outputs
-outputs/evidence/MG-*.png
-outputs/evidence/PI-*.jpg
-outputs/evidence/*crash*
-outputs/incident_dossiers/PI-0004*.pdf
-outputs/incident_dossiers/PI-0005*.pdf
+# Runtime generated evidence, clips, dossiers, and logs
+outputs/*.jsonl
+outputs/*.pdf
+outputs/*.mp4
+outputs/evidence/
+outputs/event_evidence_test/
+outputs/event_replays/
+outputs/event_clips/
+outputs/incident_dossiers/
+outputs/test_clips/

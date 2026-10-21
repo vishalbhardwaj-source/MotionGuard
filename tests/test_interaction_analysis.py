@@ -308,3 +308,40 @@ def test_monocular_scale_ttc():
     # Shrinking or stagnant box returns inf
     box_shrink = [0, 0, 45, 45]
     assert calculate_monocular_scale_ttc(box_shrink, box_curr, dt=0.1) == float("inf")
+
+
+def test_optical_tau_ttc_computes_finite_value():
+    # Track 1 stationary, Track 2 approaching and looming (growing bbox)
+    records = []
+    for f in range(4):
+        t = f * 0.1
+        w = 20.0 + f * 5.0
+        records.append({
+            "frame_index": f,
+            "timestamp_seconds": t,
+            "track_id": 1,
+            "center_xy": (50.0, 50.0),
+            "bbox_xyxy": [40, 40, 60, 60],
+        })
+        records.append({
+            "frame_index": f,
+            "timestamp_seconds": t,
+            "track_id": 2,
+            "center_xy": (100.0 - f * 8.0, 50.0),
+            "bbox_xyxy": [100.0 - f * 8.0 - w / 2, 50 - w / 2, 100.0 - f * 8.0 + w / 2, 50 + w / 2],
+        })
+
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80.0,
+        min_closing_speed_px_s=1.0,
+        min_consecutive_matches=2,
+    )
+    assert len(findings) > 0
+    valid_taus = [
+        f["optical_tau_ttc_seconds"]
+        for f in findings
+        if f.get("optical_tau_ttc_seconds") is not None
+    ]
+    assert len(valid_taus) > 0
+    assert all(tau > 0 for tau in valid_taus)

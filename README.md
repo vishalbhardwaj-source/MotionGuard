@@ -10,7 +10,7 @@
 [![YOLO11](https://img.shields.io/badge/Vision-Ultralytics%20YOLO11n-00FFFF.svg)](https://github.com/ultralytics/ultralytics)
 [![ByteTrack](https://img.shields.io/badge/Tracking-ByteTrack%20%7C%20BoT--SORT-brightgreen.svg)](https://github.com/ifzhang/ByteTrack)
 [![ReportLab](https://img.shields.io/badge/Reports-ReportLab%20PDF-red.svg)](https://www.reportlab.com/)
-[![Tests](https://img.shields.io/badge/Tests-42%20Passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-57%20Passing-success.svg)](tests/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-orange.svg)](LICENSE)
 
 ---
@@ -50,7 +50,7 @@ flowchart TD
 ## 🌟 Key Features
 
 1. **📹 Class-Filtered Vision & Persistent Tracking**:
-   - Leverages **YOLO11n** paired with **ByteTrack** and **BoT-SORT** association algorithms.
+   - Leverages **YOLO11n** paired with **ByteTrack** as the primary association tracker (with **BoT-SORT** supported as a configurable option in `config.yaml`).
    - Restricts tracking strictly to vehicle classes (`car`, `motorcycle`, `bus`, `truck`) to eliminate track fragmentation from spurious non-vehicle background detections (e.g. road signs, barriers).
    - Extracts continuous coordinate trajectories, bounding boxes, and centroid motion paths across video frames.
 
@@ -74,6 +74,23 @@ flowchart TD
    - Auto-generates structured incident dossiers with ReportLab.
    - Embeds visual evidence frames, tracked vehicle metadata, kinematic metrics, investigator notes, and scientific honesty disclaimers regarding uncalibrated 2D monocular perspectives.
 
+6. **🏷️ Multi-Class Severity Engine (`src/risk_engine.py`)**:
+   - Distinguishes **🔴 Confirmed Collisions** (physical IoU $\ge 0.05$ or kinetic halt) from **🟡 Near-Misses** (high optical TTC closure without contact) and **🟠 Stationary Vehicles** (obstruction $> 2.0$s cessation).
+   - Maps each severity class to distinct dispatch protocols (EMS Priority 1 vs Tow/Patrol Hazard vs Safety Heatmap Telemetry).
+
+7. **🎬 Dynamic Incident Video Clip Export (`src/video_processor.py`)**:
+   - Generates temporal incident video clips ($[-2.5\text{s}, +2.5\text{s}]$ window) centered around the exact moment of closest approach.
+   - Burns a telemetry HUD (timestamp, event ID, time delta from impact, and severity badge) directly into the video frames.
+   - Re-encodes with FFmpeg to streamable H.264 (`yuv420p` + `faststart`) for instant in-browser playback and Telegram video dispatches.
+
+8. **🗺️ Spatial Geofencing & Operational Lane Zones (`src/zones.py`)**:
+   - Polygon region-of-interest geofencing (`REGULAR_LANE`, `MERGE_ZONE`, `SHOULDER`).
+   - Context-aware threshold modulation: dynamically scales proximity thresholds down in on-ramp merge zones to prevent nuisance alarms during natural close merging, while escalating vigilance on breakdown shoulders.
+
+9. **⚙️ Real-Time Confusion Matrix & Calibration View (`src/benchmark.py` & Tab 6)**:
+   - Interactive calibration dashboard with real-time sliders for IoU, Optical TTC ($\tau$), and scale-normalized distance.
+   - Computes a complete empirical $2 \times 2$ Confusion Matrix (TP, FP, FN, TN), Precision, Recall, Specificity, and False Alarms/hr with automated operational trade-off recommendations.
+
 ---
 
 ## 🧪 Ground-Truth Benchmarks & Empirical Evaluation
@@ -84,11 +101,11 @@ MotionGuard includes a formal benchmark evaluation engine ([`src/benchmark.py`](
 
 We evaluated MotionGuard across two reference clips:
 - **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Open-domain highway traffic with dense merging.
-- **Clip B (Highway Collision Clip)**: `outputs/uploaded_tracked_web.mp4` (10.00s, 300 frames). Real two-vehicle collision with physical contact onset at $t = 5.20$s.
+- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Two-vehicle collision sequence annotated with physical contact onset at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
 
 | Evaluation Metric | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Benchmark Standard |
 | :--- | :---: | :---: | :--- |
-| **Clip Duration** | 23.89s (716 frames) | 10.00s (300 frames) | Reference test clips |
+| **Clip Duration** | 23.89s (716 frames) | 10.50s (630 frames) | Reference test clips |
 | **Ground-Truth Collisions** | **0** | **1 (Onset: 5.20s)** | Certified ground truth |
 | **Emergency Crash Dispatches** | **0 (Zero False Dispatches)** | **1 (Triggered at 5.50s)** | Responder alerting tier |
 | **Candidate Triage Episodes** | 3 candidate episodes | 1 confirmed collision | Human monitoring tier |
@@ -195,13 +212,41 @@ docker build -t motionguard .
 docker run -p 8501:8501 motionguard
 ```
 
-Open your browser at **`http://localhost:8501`**. Default Operator Security PIN: **`1234`**.
+Open your browser at **`http://localhost:8501`**. *(Note: Safe Local Simulator Mode is active by default with zero setup; configure `OPERATOR_PIN` in `.env` to unlock live external telecommunications broadcasts).*
 
 ---
 
-### 3. Running Automated Tests
+### 3. 🏆 Hackathon Evaluation & Live Demonstration Walkthrough
 
-Run the full automated test suite (42 unit & integration tests with network mocks):
+Follow this 2-minute walkthrough to experience MotionGuard's complete end-to-end capabilities:
+
+1. **📖 Explore the Project Overview Page**:
+   - The app lands on the **Project Overview & Mission** portal.
+   - Review the problem statement (alert fatigue vs. response latency), 6-stage architectural pipeline, multi-class severity protocols, and ground-truth benchmark metrics.
+   - Click the top or bottom button: **`🚀 Launch Operations Workstation →`**.
+
+2. **📹 Load Benchmark Video (or Upload Custom Footage)**:
+   - In **Tab 1 (Video Analysis)**, click **`🚨 Quick-Load Highway Crash Demo (crash_demo.mp4)`** (or drag & drop your own traffic footage).
+   - Video metadata (resolution, frame rate, duration) is instantly analyzed and displayed.
+
+3. **⚡ Execute 1-Click Autonomous Accident Pipeline**:
+   - Select your alert channel (Telegram Push / Local Carrier Simulator / Twilio SMS).
+   - Click **`🚀 Run Fully Autonomous Accident Pipeline (1-Click)`**.
+   - MotionGuard executes YOLO11n + ByteTrack tracking, calculates optical-tau ($\tau$) kinematics and scale-normalized distance, pinpoints the collision at 5.5s, logs the incident, and dispatches an emergency alert with an evidence snapshot.
+   - Inspect the **Autonomous Accident Response Receipt** and click **`📄 Download Investigation Support Dossier`** to view the auto-compiled ReportLab PDF.
+
+4. **🔍 Explore Interactive Investigation & Forensics Tabs**:
+   - **Tab 2 (Interaction Investigation)**: Inspect primary vs. single-detection candidate interaction episodes, review closest-approach frames, and click **`🎬 Export Incident Video Clip (±2.5s)`** to generate an H.264 replay clip with a burned-in telemetry HUD.
+   - **Tab 3 (Risk Scenario)**: Interactively adjust vehicle speed, speed limit, and contact flags to evaluate explainable risk factor scoring in real time.
+   - **Tab 4 (Incident Command)**: Review the persistent incident audit table and update triage lifecycle statuses (`NEW` $\to$ `UNDER REVIEW` $\to$ `RESOLVED`).
+   - **Tab 5 (Review & Dispatch Dossier)**: Review incident evidence cards, inspect transparent risk vectors, and test operator-authenticated dispatches with the Operator Security PIN gate.
+   - **Tab 6 (Calibration & Matrix)**: Interactively tune contact IoU, optical scale TTC ($\tau$), and scale-normalized distance thresholds with real-time $2 \times 2$ Confusion Matrix and False Alarm rate visualization.
+
+---
+
+### 4. Running Automated Tests
+
+Run the full automated test suite (57 unit & integration tests across vision, kinematics, zones, clips & benchmarks):
 
 ```bash
 # Windows 1-Click
@@ -228,9 +273,9 @@ MotionGuard is designed with rigorous engineering transparency:
 ## ⚖️ Licensing, Provenance & Privacy
 
 1. **Open-Source License**: MotionGuard is open-sourced under the **GNU Affero General Public License v3.0 (AGPL-3.0)** to adhere to Ultralytics YOLO11 upstream licensing terms. See [`LICENSE`](LICENSE) for details.
-2. **Video Footage Provenance**:
-   - `data/videos/normal.mp4`: Royalty-free public domain surveillance footage of multi-lane highway traffic under CC0 / Open Public License (Pexels / Pixabay).
-   - Collision benchmark clip: Verified highway rear-end collision segment from public traffic safety evaluation archives.
+2. **Video Footage Provenance & Attribution**:
+   - `data/videos/normal.mp4`: Royalty-free highway surveillance footage under CC0 / Open Public License ([Pexels Highway Traffic Archive](https://www.pexels.com/video/traffic-on-the-highway-854746/)).
+   - `data/videos/crash_demo.mp4`: Highway two-vehicle rear-end collision segment evaluated against annotated ground-truth temporal crash windows in [`data/benchmarks/ground_truth.json`](data/benchmarks/ground_truth.json).
 3. **Privacy Compliance & Roadmap**:
    - **🔮 Planned Roadmap**: Automated face and license-plate blurring is not yet integrated; currently planned for future releases prior to live field deployments.
    - **RTSP Live Ingestion**: Direct RTSP surveillance streaming and sub-second per-event clip export are planned for v3.0.
@@ -241,13 +286,21 @@ MotionGuard is designed with rigorous engineering transparency:
 
 ```text
 MotionGuard/
-├── app.py                      # Main Streamlit 5-tab incident workstation (with Operator PIN gate)
-├── config.yaml                 # Centralized thresholds (TTC, scale norm, cooldown, classes)
+├── app.py                      # Main Streamlit 6-tab incident workstation
+├── config.yaml                 # Centralized thresholds (TTC, scale norm, cooldown, zones)
 ├── requirements.txt            # Python dependencies
 ├── Dockerfile                  # Production container definition (Python 3.11 + FFmpeg)
 ├── download_weights.py         # Autonomous YOLO11n weight download verification
 ├── LICENSE                     # AGPL-3.0 License file
-├── .env.example                # Template for Telegram / Twilio API keys
+├── .env.example                # Template for Telegram / Twilio API keys & OPERATOR_PIN
+├── scripts/                    # Utility, track inspection, and diagnostic scripts
+├── docs/                       # Project documentation & presentation dossier
+├── data/
+│   ├── videos/
+│   │   ├── normal.mp4          # Safe highway traffic baseline clip
+│   │   └── crash_demo.mp4      # Highway collision demonstration clip
+│   └── benchmarks/
+│       └── ground_truth.json   # Ground-truth temporal accident interval annotations
 ├── .gitignore                  # Git ignore rules for clean repository
 ├── pytest.ini                  # Pytest test discovery & execution config
 ├── run_dashboard.bat           # 1-click Windows dashboard launcher
@@ -257,6 +310,8 @@ MotionGuard/
 ├── .github/
 │   └── workflows/ci.yml        # GitHub Actions Multi-Python CI matrix
 ├── src/
+│   ├── overview_page.py        # Executive project mission, architecture & innovation presentation
+│   ├── zones.py                # Polygon geofencing & context-aware lane zone modulation
 │   ├── config.py               # YAML configuration loader with safe fallbacks
 │   ├── db.py                   # SQLite database storage (WAL mode, concurrent-safe)
 │   ├── worker.py               # Asynchronous video background task executor
@@ -270,6 +325,10 @@ MotionGuard/
 │   ├── reporting.py            # Incident persistence & lifecycle audit logs
 │   └── pdf_report.py           # Investigation-support dossier PDF export
 ├── tests/
+│   ├── test_zones.py                  # Geofencing zone containment & threshold modulation tests
+│   ├── test_confusion_matrix.py       # Real-time calibration & confusion matrix evaluation tests
+│   ├── test_severity_classification.py# Multi-class collision vs. near-miss triage tests
+│   ├── test_event_clip.py             # Incident video clip exporter with HUD overlay tests
 │   ├── test_config.py                # Configuration loader tests
 │   ├── test_db.py                    # SQLite database persistence tests
 │   ├── test_worker.py                # Background asynchronous task runner tests

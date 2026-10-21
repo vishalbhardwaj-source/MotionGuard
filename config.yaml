@@ -21,6 +21,17 @@ kinematics:
   min_iou_contact: 0.05 # Bounding box IoU considered physical contact / overlap
   deceleration_post_impact_threshold: 0.50 # 50% velocity drop after contact
 
+zones:
+  enabled: true
+  merge_zone_sensitivity: 0.65 # Scales proximity threshold in merge zones to prevent nuisance alarms
+  shoulder_sensitivity: 1.80 # Escalates vigilance on emergency breakdown shoulders
+
+severity:
+  stopped_vehicle_seconds: 2.0 # Minimum stationary duration for stopped vehicle hazard
+  stopped_speed_px_s: 5.0 # Velocity ceiling below which a vehicle is considered stationary
+  near_miss_max_ttc: 3.5
+  near_miss_max_norm_dist: 1.8
+
 risk_engine:
   speed_limit_kmh: 50.0
   critical_threat_score: 80
@@ -31,6 +42,6 @@ dispatch:
   cooldown_seconds: 60 # Anti-spam per-camera cooldown
   default_camera_id: "CAM-01"
   default_location: "Highway North - Sector 4"
-  default_phone: "+919876543210"
+  default_phone: "+15550199000"
   auto_dispatch_critical_only: true
   gateway_mode: "SIMULATOR" # AUTO, TELEGRAM, TWILIO, SIMULATOR

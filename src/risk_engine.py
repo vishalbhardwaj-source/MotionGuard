@@ -1,6 +1,113 @@
 import math
 
 
+def classify_severity(
+    event_or_metrics=None,
+    suspected_collision=False,
+    peak_iou=0.0,
+    post_impact_signals=None,
+    minimum_distance_px=None,
+    minimum_ttc_seconds=None,
+    minimum_normalized_distance=None,
+    peak_closing_speed=0.0,
+    is_stopped_vehicle=False,
+    stopped_duration_seconds=0.0,
+    zone_type=None,
+):
+    """
+    Classify traffic safety events into distinct operational severity categories:
+      - COLLISION: Confirmed physical contact (IoU >= 0.05) or sudden kinetic halt.
+      - NEAR_MISS: Critical proximity & approach dynamics without physical overlap.
+      - STOPPED_VEHICLE: Stationary vehicle (velocity < 5 px/s for >= 2.0s) causing roadway obstruction.
+      - NOMINAL: Routine traffic flow / standard passing.
+    """
+    if isinstance(event_or_metrics, dict):
+        event = event_or_metrics
+        suspected_collision = event.get("suspected_collision", suspected_collision)
+        peak_iou = event.get("peak_bbox_iou", peak_iou) or 0.0
+        post_impact_signals = event.get("post_impact_signals", post_impact_signals) or []
+        minimum_distance_px = event.get("minimum_distance_px", minimum_distance_px)
+        minimum_ttc_seconds = event.get("minimum_ttc_seconds", minimum_ttc_seconds)
+        minimum_normalized_distance = event.get("minimum_normalized_distance", minimum_normalized_distance)
+        peak_closing_speed = event.get("peak_closing_speed_px_per_second", peak_closing_speed) or 0.0
+        is_stopped_vehicle = event.get("is_stopped_vehicle", is_stopped_vehicle)
+        stopped_duration_seconds = event.get("stopped_duration_seconds", stopped_duration_seconds) or 0.0
+        zone_type = event.get("zone_type", zone_type)
+
+    post_impact_signals = post_impact_signals or []
+    has_post_impact = bool(post_impact_signals)
+    contact_overlap = peak_iou >= 0.05
+
+    # 1. STOPPED VEHICLE CLASSIFICATION
+    if is_stopped_vehicle or stopped_duration_seconds >= 2.0:
+        return {
+            "category": "STOPPED_VEHICLE",
+            "badge": "🟠 STOPPED VEHICLE",
+            "priority": 2,
+            "confidence": 0.92,
+            "rationale": "Stationary vehicle detected on active roadway (>2.0s cessation), creating primary collision obstacle.",
+            "recommended_action": "Dispatch Highway Incident Response / Tow Patrol to secure lane and clear obstruction.",
+            "dispatch_eligible": True,
+            "dispatch_priority": "PRIORITY_2_HAZARD",
+        }
+
+    # 2. COLLISION CLASSIFICATION
+    is_collision = (
+        suspected_collision
+        or (contact_overlap and (minimum_distance_px is None or minimum_distance_px <= 35.0))
+        or has_post_impact
+    )
+    if is_collision:
+        return {
+            "category": "COLLISION",
+            "badge": "🔴 COLLISION",
+            "priority": 1,
+            "confidence": 0.96 if contact_overlap else 0.88,
+            "rationale": (
+                "Verified physical contact overlap (IoU >= 0.05) or sudden post-impact kinetic cessation."
+                if contact_overlap or has_post_impact
+                else "Critical trajectory intersection with urgent operator collision flag."
+            ),
+            "recommended_action": "Immediate Priority 1 Authority Dispatch (EMS, Police, Fire Rescue).",
+            "dispatch_eligible": True,
+            "dispatch_priority": "PRIORITY_1_CRITICAL",
+        }
+
+    # 3. NEAR-MISS CLASSIFICATION
+    is_imminent_ttc = minimum_ttc_seconds is not None and minimum_ttc_seconds <= 3.5
+    is_critical_proximity = minimum_normalized_distance is not None and minimum_normalized_distance <= 1.8
+    is_rapid_close = (
+        minimum_distance_px is not None
+        and minimum_distance_px <= 45.0
+        and peak_closing_speed >= 15.0
+    )
+
+    if is_imminent_ttc or is_critical_proximity or is_rapid_close:
+        merge_note = " in designated merge zone" if zone_type == "MERGE_ZONE" else ""
+        return {
+            "category": "NEAR_MISS",
+            "badge": "🟡 NEAR-MISS",
+            "priority": 3,
+            "confidence": 0.85,
+            "rationale": f"High closing dynamics / optical TTC without physical contact overlap{merge_note}.",
+            "recommended_action": "Log telemetry to Near-Miss Safety Heatmap & Safety Engineering Audit.",
+            "dispatch_eligible": False,
+            "dispatch_priority": "MONITORING_ONLY",
+        }
+
+    # 4. NOMINAL / ROUTINE
+    return {
+        "category": "NOMINAL",
+        "badge": "🟢 NOMINAL",
+        "priority": 4,
+        "confidence": 0.95,
+        "rationale": "Separation distance and closure kinematics within regular traffic stream baseline.",
+        "recommended_action": "Passive surveillance logging; no intervention required.",
+        "dispatch_eligible": False,
+        "dispatch_priority": "NONE",
+    }
+
+
 def assess_risk(
     speed_kmh,
     speed_limit_kmh,
@@ -11,6 +118,7 @@ def assess_risk(
     collision_confirmation=None,
     minimum_distance_px=None,
     closing_speed_px_per_second=None,
+    severity_category=None,
 ):
     """
     Assess traffic event risk using an explainable multi-factor scoring model.
@@ -137,6 +245,21 @@ def assess_risk(
         confirmation_status = "not indicated"
         confirmation_detail = "No persistent geometric interpenetration or post-impact stationary trajectory."
 
+    # Multi-class severity classification
+    if severity_category:
+        severity = classify_severity(
+            suspected_collision=(severity_category == "COLLISION"),
+            is_stopped_vehicle=(severity_category == "STOPPED_VEHICLE"),
+            minimum_distance_px=minimum_distance_px,
+            peak_closing_speed=closing_speed_px_per_second or 0.0,
+        )
+    else:
+        severity = classify_severity(
+            suspected_collision=suspected_collision,
+            minimum_distance_px=minimum_distance_px,
+            peak_closing_speed=closing_speed_px_per_second or 0.0,
+        )
+
     # Standardized reason bullet points
     reasons = [
         primary_reason,
@@ -182,6 +305,7 @@ def assess_risk(
         "threat_score": score,
         "threat_level": level,
         "event_status": status,
+        "severity": severity,
         "speed_kmh": speed,
         "speed_limit_kmh": limit,
         "overspeed_ratio": round(ratio, 4),
@@ -214,10 +338,16 @@ def assess_event_risk(event):
     contact_overlap = peak_iou >= 0.05
     imminent_ttc = min_ttc is not None and min_ttc < 1.5
 
+    # Multi-class severity derivation
+    severity = classify_severity(event)
+
     # Physics-grounded threat classification
-    if (contact_overlap or has_post_impact) and min_dist <= 30.0:
+    if severity["category"] == "COLLISION" or (contact_overlap or has_post_impact) and min_dist <= 30.0:
         base_speed = 95.0
         collision = True
+    elif severity["category"] == "STOPPED_VEHICLE":
+        base_speed = 80.0
+        collision = False
     elif conf_count >= 3 and min_dist <= 15.0 and closing_speed >= 25.0:
         base_speed = 90.0
         collision = True
@@ -234,10 +364,12 @@ def assess_event_risk(event):
         base_speed = 45.0
         collision = False
 
-    return assess_risk(
+    result = assess_risk(
         speed_kmh=base_speed,
         speed_limit_kmh=50.0,
         suspected_collision=collision,
         minimum_distance_px=min_dist if math.isfinite(min_dist) else None,
         closing_speed_px_per_second=closing_speed,
     )
+    result["severity"] = severity
+    return result

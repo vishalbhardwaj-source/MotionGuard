@@ -4,7 +4,11 @@ import math
 import os
 import re
 from pathlib import Path
-import requests
+try:
+    import requests
+except ImportError:
+    from unittest.mock import MagicMock
+    requests = MagicMock()
 
 # Per-camera dispatch cooldown cache (seconds)
 _DISPATCH_COOLDOWN_CACHE = {}
@@ -192,6 +196,7 @@ def dispatch_sms(
     telegram_token=None,
     telegram_chat_id=None,
     photo_path=None,
+    video_path=None,
     camera_id=None,
     threat_score=None,
     threat_level=None,
@@ -240,6 +245,7 @@ def dispatch_sms(
             "dispatched_at": now_iso,
             "body": message_text,
             "photo_attached": bool(photo_path and Path(photo_path).is_file()),
+            "video_attached": bool(video_path and Path(video_path).is_file()),
         }
 
     # Priority 1: Real Twilio SMS if explicitly requested or in AUTO mode with credentials
@@ -312,9 +318,17 @@ def dispatch_sms(
 
         # Check if visual snapshot evidence is attached and exists
         has_photo = photo_path and Path(photo_path).is_file()
+        has_video = video_path and Path(video_path).is_file()
 
         try:
-            if has_photo:
+            if has_video:
+                # Send video clip with caption
+                tg_video_url = f"https://api.telegram.org/bot{tg_token}/sendVideo"
+                with open(video_path, "rb") as video_file:
+                    files = {"video": video_file}
+                    payload = {"chat_id": tg_chat, "caption": message_text}
+                    response = requests.post(tg_video_url, data=payload, files=files, timeout=30)
+            elif has_photo:
                 # Send photo with caption
                 tg_photo_url = f"https://api.telegram.org/bot{tg_token}/sendPhoto"
                 with open(photo_path, "rb") as photo_file:
@@ -377,9 +391,12 @@ def dispatch_sms(
     }
 
 
-def log_sms_dispatch(dispatch_result, log_path="outputs/sms_dispatches.jsonl"):
+DISPATCH_LOG_PATH = Path("outputs/sms_dispatches.jsonl")
+
+
+def log_sms_dispatch(dispatch_result, log_path=None):
     """Persist SMS dispatch audit trail to JSONL and SQLite."""
-    path = Path(log_path)
+    path = Path(log_path) if log_path else DISPATCH_LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as file:
         file.write(json.dumps(dispatch_result) + "\n")

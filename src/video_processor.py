@@ -3,7 +3,10 @@ import json
 from pathlib import Path
 
 import cv2
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 
 
 def inspect_video(video_path):
@@ -543,8 +546,14 @@ def create_event_clip(
     timestamp_seconds,
     output_path,
     window_seconds=3.0,
+    event_id=None,
+    severity_badge=None,
+    overlay_hud=True,
+    reencode_h264=True,
 ):
-    """Create a short clip around a selected event timestamp."""
+    """Create a short clip around a selected event timestamp with optional telemetry HUD and H.264 web compatibility."""
+    import subprocess
+    import shutil
     from pathlib import Path
     import cv2
 
@@ -572,28 +581,63 @@ def create_event_clip(
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    temp_raw = output.with_name(f"temp_raw_{output.name}")
 
     fps = info["fps"] if info["fps"] > 0 else 30.0
+    width = info["width"]
+    height = info["height"]
+
     writer = cv2.VideoWriter(
-        str(output),
+        str(temp_raw),
         cv2.VideoWriter_fourcc(*"mp4v"),
         fps,
-        (info["width"], info["height"]),
+        (width, height),
     )
 
     if not writer.isOpened():
         source.release()
-        raise RuntimeError("Could not create event clip.")
+        raise RuntimeError("Could not create event clip writer.")
 
     try:
         source.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)
         frames_to_read = max(1, int((end_time - start_time) * fps))
         frames_written = 0
 
-        for _ in range(frames_to_read):
+        for idx in range(frames_to_read):
             ok, frame = source.read()
             if not ok:
                 break
+
+            current_time = start_time + (idx / fps)
+            time_delta = current_time - timestamp_seconds
+
+            if overlay_hud:
+                # Semi-transparent top HUD banner
+                overlay = frame.copy()
+                cv2.rectangle(overlay, (0, 0), (width, 48), (20, 20, 25), -1)
+                cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
+
+                # Text annotations
+                tag = f"INCIDENT CLIP | {event_id or 'EVENT'}"
+                if severity_badge:
+                    tag += f" | {severity_badge}"
+                cv2.putText(
+                    frame, tag, (16, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA
+                )
+
+                # Time offset from impact
+                offset_str = f"T{time_delta:+.2f}s  (t={current_time:.2f}s)"
+                color = (0, 0, 255) if abs(time_delta) <= 0.25 else (0, 255, 255) if abs(time_delta) <= 0.8 else (200, 200, 200)
+                cv2.putText(
+                    frame, offset_str, (width - 260, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2, cv2.LINE_AA
+                )
+
+                # Highlight flash around the critical impact instant
+                if abs(time_delta) <= 0.20:
+                    cv2.rectangle(frame, (4, 4), (width - 4, height - 4), (0, 0, 255), 3)
+
             writer.write(frame)
             frames_written += 1
 
@@ -604,10 +648,31 @@ def create_event_clip(
         source.release()
         writer.release()
 
+    is_h264 = False
+    if reencode_h264 and shutil.which("ffmpeg"):
+        try:
+            cmd = [
+                "ffmpeg", "-y", "-i", str(temp_raw),
+                "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                str(output),
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res.returncode == 0 and output.is_file():
+                is_h264 = True
+                temp_raw.unlink(missing_ok=True)
+            else:
+                shutil.move(str(temp_raw), str(output))
+        except Exception:
+            shutil.move(str(temp_raw), str(output))
+    else:
+        shutil.move(str(temp_raw), str(output))
+
     return {
         "output_path": str(output),
-        "start_seconds": start_time,
-        "end_seconds": end_time,
+        "start_seconds": round(start_time, 2),
+        "end_seconds": round(end_time, 2),
         "frames_written": frames_written,
+        "duration_seconds": round(end_time - start_time, 2),
+        "is_h264": is_h264,
     }
-
