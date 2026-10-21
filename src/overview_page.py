@@ -9,7 +9,7 @@ def render_project_overview_page():
     and technological differentiators for MotionGuard.
     """
     # Quick Navigation Header
-    header_col1, header_col2 = st.columns([3, 1])
+    header_col1, header_col2 = st.columns([2, 1])
     with header_col1:
         st.markdown(
             """
@@ -24,9 +24,15 @@ def render_project_overview_page():
             unsafe_allow_html=True,
         )
     with header_col2:
-        if st.button("🚀 Launch Operations Workstation →", type="primary", use_container_width=True, key="top_cta_workstation"):
-            st.session_state["active_view"] = "workstation"
-            st.rerun()
+        top_btn_w, top_btn_ws = st.columns(2)
+        with top_btn_w:
+            if st.button("🌟 Welcome Page", use_container_width=True, key="ov_top_welcome_btn"):
+                st.session_state["active_view"] = "welcome"
+                st.rerun()
+        with top_btn_ws:
+            if st.button("🚀 Workstation →", type="primary", use_container_width=True, key="top_cta_workstation"):
+                st.session_state["active_view"] = "workstation"
+                st.rerun()
 
     # Grand Futuristic Hero Banner
     st.markdown(
@@ -490,7 +496,11 @@ def render_project_overview_page():
         unsafe_allow_html=True,
     )
 
-    btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        if st.button("🌟 Back to Welcome Page", use_container_width=True, key="bottom_welcome_btn"):
+            st.session_state["active_view"] = "welcome"
+            st.rerun()
     with btn_col2:
         if st.button("🚀 Launch Live Operations Workstation Now", type="primary", use_container_width=True, key="bottom_cta_workstation"):
             st.session_state["active_view"] = "workstation"

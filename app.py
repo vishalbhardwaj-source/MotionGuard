@@ -29,6 +29,7 @@ from src.alert_dispatcher import (
 )
 from src.incident_pipeline import run_automated_incident_pipeline
 from src.overview_page import render_project_overview_page
+from src.welcome_page import render_welcome_page
 
 
 st.set_page_config(
@@ -512,19 +513,27 @@ with st.sidebar:
     )
 
     st.markdown("##### 🧭 Portal Navigation")
-    current_view = st.session_state.get("active_view", "overview")
-    view_idx = 0 if current_view == "overview" else 1
+    current_view = st.session_state.get("active_view", "welcome")
+    view_nav_options = [
+        "🌟 Welcome to MotionGuard",
+        "📖 System Architecture & Mission",
+        "🚦 Operations Workstation",
+    ]
+    view_map = {
+        "🌟 Welcome to MotionGuard": "welcome",
+        "📖 System Architecture & Mission": "overview",
+        "🚦 Operations Workstation": "workstation",
+    }
+    view_idx_map = {"welcome": 0, "overview": 1, "workstation": 2}
+    view_idx = view_idx_map.get(current_view, 0)
 
     selected_view = st.radio(
         "Navigation",
-        [
-            "📖 Project Overview & Mission",
-            "🚦 Operations Workstation",
-        ],
+        view_nav_options,
         index=view_idx,
         label_visibility="collapsed",
     )
-    new_view = "overview" if "Overview" in selected_view else "workstation"
+    new_view = view_map.get(selected_view, "welcome")
     if new_view != current_view:
         st.session_state["active_view"] = new_view
         st.rerun()
@@ -602,18 +611,25 @@ with st.sidebar:
     st.caption("MotionGuard AI · Submission Ready · Hackathon Edition")
 
 # Check active portal view
-active_view = st.session_state.get("active_view", "overview")
+active_view = st.session_state.get("active_view", "welcome")
 
-if active_view == "overview":
+if active_view == "welcome":
+    render_welcome_page()
+    st.stop()
+elif active_view == "overview":
     render_project_overview_page()
     st.stop()
 
 # Operations Workstation View
-nav_col_a, nav_col_b = st.columns([3, 1])
+nav_col_a, nav_col_b, nav_col_c = st.columns([2, 1, 1])
 with nav_col_a:
     st.caption("Active Mode: 🚦 **Operations Workstation** · Real-Time Incident Investigation Console")
 with nav_col_b:
-    if st.button("📖 View Project Overview", use_container_width=True, key="btn_w_back_overview"):
+    if st.button("🌟 Welcome Page", use_container_width=True, key="btn_w_back_welcome"):
+        st.session_state["active_view"] = "welcome"
+        st.rerun()
+with nav_col_c:
+    if st.button("📖 Architecture & Mission", use_container_width=True, key="btn_w_back_overview"):
         st.session_state["active_view"] = "overview"
         st.rerun()
 
