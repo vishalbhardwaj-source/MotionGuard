@@ -1152,6 +1152,28 @@ with video_tab:
     )
 
     if uploaded_video is not None:
+        with st.expander("⚡ Processing speed settings", expanded=False):
+            speed_mode = st.radio(
+                "Speed mode",
+                ["🎯 Accurate (every frame)", "⚡ Fast (every 2nd frame)", "🚀 Fastest (every 3rd frame)"],
+                index=0,
+                horizontal=True,
+                help="Fast modes skip frames during inference — great for long videos.",
+            )
+            imgsz_choice = st.select_slider(
+                "Detection resolution",
+                options=[320, 416, 512, 640],
+                value=640,
+                help="Lower = faster processing with slight accuracy trade-off.",
+            )
+
+        frame_skip_map = {
+            "🎯 Accurate (every frame)": 0,
+            "⚡ Fast (every 2nd frame)": 1,
+            "🚀 Fastest (every 3rd frame)": 2,
+        }
+        chosen_frame_skip = frame_skip_map[speed_mode]
+
         if st.button("Process Video", type="primary"):
             input_path = Path("data") / "uploaded_demo.mp4"
             output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
@@ -1183,6 +1205,8 @@ with video_tab:
                     progress_callback=update_progress,
                     model=model,
                     trajectory_output_path=trajectory_path,
+                    imgsz=imgsz_choice,
+                    frame_skip=chosen_frame_skip,
                 )
 
                 

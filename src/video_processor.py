@@ -201,8 +201,17 @@ def track_video(
     confidence=0.25,
     model=None,
     trajectory_output_path=None,
+    imgsz=640,
+    frame_skip=0,
 ):
-    """Track objects in a video and save an annotated MP4."""
+    """Track objects in a video and save an annotated MP4.
+
+    Args:
+        imgsz:      YOLO inference image size. Smaller = faster (e.g. 320 or 416).
+        frame_skip: Process every (frame_skip+1)th frame. 0 = all, 1 = every other.
+    """
+    import torch
+
     input_path = Path(video_path)
     output_file = Path(output_path)
 
@@ -210,7 +219,6 @@ def track_video(
         raise FileNotFoundError(f"Video not found: {input_path}")
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
-
 
     info = inspect_video(input_path)
     total_frames = info["frame_count"]
@@ -222,6 +230,10 @@ def track_video(
     if model is None:
         model = YOLO("yolo11n.pt")
 
+    # Use GPU when available; FP16 roughly halves inference time
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    use_half = device == "cuda"
+
     cap = cv2.VideoCapture(str(input_path))
 
     if not cap.isOpened():
@@ -232,13 +244,14 @@ def track_video(
     frames_processed = 0
     frames_with_tracks = 0
     track_ids_seen = set()
+    annotated_frame = None
 
     if trajectory_output_path is not None:
-      trajectory_path = Path(trajectory_output_path)
-      trajectory_path.parent.mkdir(parents=True, exist_ok=True)
-      trajectory_file = trajectory_path.open(
-          "w", encoding="utf-8"
-      )
+        trajectory_path = Path(trajectory_output_path)
+        trajectory_path.parent.mkdir(parents=True, exist_ok=True)
+        trajectory_file = trajectory_path.open(
+            "w", encoding="utf-8"
+        )
 
     try:
         writer = cv2.VideoWriter(
@@ -252,16 +265,29 @@ def track_video(
             raise RuntimeError("Could not create output video.")
         trajectory_history = {}
         last_seen_frame = {}
+        raw_frame_index = 0
         while True:
             success, frame = cap.read()
             if not success:
                 break
 
+            # Frame-skipping: re-use last annotated frame for skipped frames
+            if frame_skip > 0 and raw_frame_index % (frame_skip + 1) != 0:
+                raw_frame_index += 1
+                frames_processed += 1
+                if annotated_frame is not None:
+                    writer.write(annotated_frame)
+                continue
+
+            raw_frame_index += 1
+
             result = model.track(
                 source=frame,
                 persist=True,
                 tracker="bytetrack.yaml",
-                device=0,
+                device=device,
+                half=use_half,
+                imgsz=imgsz,
                 conf=confidence,
                 verbose=False,
             )[0]
