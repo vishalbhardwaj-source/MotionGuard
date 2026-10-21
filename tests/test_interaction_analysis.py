@@ -243,3 +243,53 @@ def test_same_class_tracks_with_03853_iou():
 
     print(f"Duplicate filter result: {result}")
 
+
+
+def test_ttc_calculation_and_filtering():
+    from src.interaction_analysis import calculate_ttc
+
+    # 100px at 50px/s closing speed = 2.0s TTC
+    assert calculate_ttc(100.0, 50.0) == 2.0
+    # Negative or 0 closing speed = inf
+    assert calculate_ttc(100.0, 0.0) == float("inf")
+    assert calculate_ttc(100.0, -10.0) == float("inf")
+
+    # Approaching objects with distance 40px and closing speed 10px/s -> TTC = 4.0s
+    records = make_records(
+        [0, 1, 2, 3],
+        [43, 42, 41, 40],
+        times=(0.0, 0.1, 0.2, 0.3),
+    )
+    # When max_ttc_seconds=2.0, TTC is ~3.7s so it should be filtered out
+    findings = analyze_interactions(
+        records,
+        proximity_threshold_px=80,
+        min_closing_speed_px_s=5,
+        max_ttc_seconds=2.0,
+    )
+    assert findings == []
+
+
+def test_normalized_distance_calculation():
+    from src.interaction_analysis import calculate_normalized_distance
+
+    box_a = [0, 0, 50, 50]   # scale = 50
+    box_b = [70, 0, 120, 50] # scale = 50
+    # Center-to-center distance is 70px. avg_scale = 50 -> norm_dist = 1.4
+    norm_dist = calculate_normalized_distance(70.0, box_a, box_b)
+    assert round(norm_dist, 2) == 1.40
+
+
+def test_post_impact_kinematics_detection():
+    from src.interaction_analysis import detect_post_impact_kinematics
+
+    # Vehicle cruising fast, then abruptly halts at contact time 1.0s
+    obs = [
+        {"timestamp": 0.5, "velocity": (30.0, 0.0)},
+        {"timestamp": 0.8, "velocity": (28.0, 0.0)},
+        {"timestamp": 1.0, "velocity": (2.0, 0.0)},
+        {"timestamp": 1.2, "velocity": (0.0, 0.0)},
+    ]
+    signals = detect_post_impact_kinematics(obs, contact_time=1.0)
+    assert signals is not None
+    assert "SUDDEN_DECELERATION" in signals or "VEHICLE_STOPPED_AFTER_CONTACT" in signals

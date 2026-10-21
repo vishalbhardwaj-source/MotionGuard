@@ -1,0 +1,36 @@
+# MotionGuard System Configuration
+# Centralized thresholds and parameters for vision, tracking, kinetics, and dispatch
+
+vision:
+  model_weights: "yolo11n.pt"
+  imgsz: 640
+  confidence: 0.25
+  tracker: "bytetrack.yaml" # Options: bytetrack.yaml, botsort.yaml
+  vehicle_classes: [2, 3, 5, 7] # COCO classes: 2:car, 3:motorcycle, 5:bus, 7:truck
+  frame_skip: 0
+
+kinematics:
+  proximity_threshold_px: 80.0
+  min_closing_speed_px_s: 5.0
+  max_gap_seconds: 0.2
+  min_consecutive_matches: 3
+  
+  # Advanced scale & collision metrics
+  max_ttc_seconds: 3.5 # Time-to-Collision ceiling (seconds)
+  max_normalized_distance: 1.8 # Distance divided by average vehicle dimension
+  min_iou_contact: 0.05 # Bounding box IoU considered physical contact / overlap
+  deceleration_post_impact_threshold: 0.50 # 50% velocity drop after contact
+
+risk_engine:
+  speed_limit_kmh: 50.0
+  critical_threat_score: 80
+  high_threat_score: 60
+  elevated_threat_score: 40
+
+dispatch:
+  cooldown_seconds: 60 # Anti-spam per-camera cooldown
+  default_camera_id: "CAM-01"
+  default_location: "Highway North - Sector 4"
+  default_phone: "+919876543210"
+  auto_dispatch_critical_only: true
+  gateway_mode: "SIMULATOR" # AUTO, TELEGRAM, TWILIO, SIMULATOR

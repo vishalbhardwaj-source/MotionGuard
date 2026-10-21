@@ -50,6 +50,27 @@ def aggregate_interaction_events(findings, max_gap_seconds=0.5):
                 key=lambda item: item["closing_speed_px_per_second"],
             )
 
+            valid_ttcs = [
+                item["time_to_collision_seconds"]
+                for item in episode
+                if item.get("time_to_collision_seconds") is not None
+            ]
+            min_ttc = min(valid_ttcs) if valid_ttcs else None
+
+            valid_norm_dists = [
+                item["normalized_distance"]
+                for item in episode
+                if item.get("normalized_distance") is not None
+            ]
+            min_norm_dist = min(valid_norm_dists) if valid_norm_dists else None
+
+            peak_iou = max((item.get("bbox_iou") or 0.0) for item in episode)
+            all_signals = list({
+                sig
+                for item in episode
+                for sig in item.get("post_impact_signals", [])
+            })
+
             events.append({
                 "event_id": f"PI-{len(events) + 1:04d}",
                 "track_ids": list(pair),
@@ -81,6 +102,10 @@ def aggregate_interaction_events(findings, max_gap_seconds=0.5):
                 "evidence_timestamp_seconds": (
                     closest["timestamp_seconds"]
                 ),
+                "minimum_ttc_seconds": min_ttc,
+                "minimum_normalized_distance": min_norm_dist,
+                "peak_bbox_iou": peak_iou,
+                "post_impact_signals": all_signals,
                 "finding": "POTENTIAL_APPROACHING_INTERACTION",
                 "confidence": "UNVALIDATED_HEURISTIC",
                 "limitations": [

@@ -4,6 +4,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+from src.db import save_incident_to_db, update_incident_status_in_db
 
 
 OUTPUT_DIR = Path("outputs")
@@ -69,6 +70,11 @@ def create_incident_report(
 
     with INCIDENT_LOG.open("a", encoding="utf-8") as file:
         file.write(json.dumps(report) + "\n")
+
+    try:
+        save_incident_to_db(report)
+    except Exception:
+        pass
 
     return report
 
@@ -141,5 +147,10 @@ def update_review_status(incident_id, new_status):
     finally:
         if temp_log.exists():
             temp_log.unlink()
+
+    try:
+        update_incident_status_in_db(incident_id, new_status)
+    except Exception:
+        pass
 
     return found_report

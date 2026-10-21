@@ -1,7 +1,5 @@
-
 import math
 from collections import defaultdict
-
 
 
 def bbox_iou(box_a, box_b):
@@ -34,6 +32,71 @@ def bbox_iou(box_a, box_b):
     return intersection / union
 
 
+def calculate_normalized_distance(distance_px, box_a, box_b):
+    """
+    Calculate Euclidean separation normalized by vehicle bounding box scale.
+    Normalized distance < 1.0 means vehicles are closer than their own average size.
+    """
+    if not box_a or not box_b or len(box_a) != 4 or len(box_b) != 4:
+        return None
+
+    w_a = abs(box_a[2] - box_a[0])
+    h_a = abs(box_a[3] - box_a[1])
+    w_b = abs(box_b[2] - box_b[0])
+    h_b = abs(box_b[3] - box_b[1])
+
+    scale_a = max(w_a, h_a)
+    scale_b = max(w_b, h_b)
+    avg_scale = (scale_a + scale_b) / 2.0
+
+    if avg_scale <= 0:
+        return None
+    return distance_px / avg_scale
+
+
+def calculate_ttc(distance_px, closing_speed_px_s):
+    """
+    Compute Time-To-Collision (TTC) in seconds.
+    TTC = distance / closing_speed for closing trajectories.
+    """
+    if closing_speed_px_s is None or closing_speed_px_s <= 0.001:
+        return float("inf")
+    return distance_px / closing_speed_px_s
+
+
+def detect_post_impact_kinematics(observations, contact_time, window_seconds=0.6, drop_ratio=0.40):
+    """
+    Detect post-impact kinematic anomalies: sudden deceleration or vehicle stopping
+    within window_seconds after point of closest approach/contact.
+    """
+    pre_speeds = []
+    post_speeds = []
+
+    for obs in observations:
+        t = obs["timestamp"]
+        vel = obs.get("velocity")
+        if vel is None:
+            continue
+        speed = math.hypot(vel[0], vel[1])
+        if contact_time - window_seconds <= t < contact_time:
+            pre_speeds.append(speed)
+        elif contact_time <= t <= contact_time + window_seconds:
+            post_speeds.append(speed)
+
+    if not pre_speeds or not post_speeds:
+        return None
+
+    avg_pre = sum(pre_speeds) / len(pre_speeds)
+    avg_post = sum(post_speeds) / len(post_speeds)
+
+    signals = []
+    if avg_pre > 10.0 and (avg_pre - avg_post) / avg_pre >= drop_ratio:
+        signals.append("SUDDEN_DECELERATION")
+    if avg_post < 3.0 and avg_pre > 15.0:
+        signals.append("VEHICLE_STOPPED_AFTER_CONTACT")
+
+    return signals if signals else None
+
 
 def is_persistent_duplicate(
     first_observations,
@@ -48,7 +111,6 @@ def is_persistent_duplicate(
     if first_classes and second_classes and first_classes.isdisjoint(second_classes):
         return False
 
-    # Use a lower overlap threshold for tracks sharing a known class.
     if first_classes and second_classes and not first_classes.isdisjoint(second_classes):
         min_iou = min(min_iou, 0.50)
 
@@ -62,7 +124,6 @@ def is_persistent_duplicate(
     }
 
     matches = sorted(first_by_time.keys() & second_by_time.keys())
-
     consecutive_matches = 0
     previous_timestamp = None
 
@@ -95,7 +156,6 @@ def is_persistent_duplicate(
     return False
 
 
-
 def analyze_interactions(
     records,
     proximity_threshold_px=80.0,
@@ -103,12 +163,15 @@ def analyze_interactions(
     max_gap_seconds=0.2,
     excluded_classes=("train",),
     min_consecutive_matches=3,
+    max_ttc_seconds=None,
+    max_normalized_distance=None,
 ):
-    """Flag candidate interactions between tracked objects.
+    """
+    Flag candidate interactions between tracked vehicles using scale-normalized
+    distance, closing speed, Time-To-Collision (TTC), and box overlap.
 
-    Measurements use image-space pixels, not calibrated real-world
-    distances or speeds. Results are candidates for review, not
-    confirmed collision predictions.
+    Measurements use image-space pixels and surrogate safety metrics.
+    Results are candidates for operator triage, not certified collision claims.
     """
     for name, value in (
         ("proximity_threshold_px", proximity_threshold_px),
@@ -131,9 +194,7 @@ def analyze_interactions(
         or not isinstance(min_consecutive_matches, int)
         or min_consecutive_matches < 1
     ):
-        raise ValueError(
-            "min_consecutive_matches must be a positive integer."
-        )
+        raise ValueError("min_consecutive_matches must be a positive integer.")
 
     grouped = defaultdict(list)
 
@@ -187,8 +248,7 @@ def analyze_interactions(
             "center_xy": (float(center[0]), float(center[1])),
         })
 
-
-    # Build valid per-track movement observations.
+    # Build valid per-track movement observations
     observations = {}
     track_classes = {}
 
@@ -202,11 +262,8 @@ def analyze_interactions(
         }
 
         movement = []
-
         for index, item in enumerate(items):
-
             velocity = None
-
             if index > 0:
                 previous = items[index - 1]
                 dt = item["timestamp_seconds"] - previous["timestamp_seconds"]
@@ -222,7 +279,6 @@ def analyze_interactions(
                         (item["center_xy"][1] - previous["center_xy"][1]) / dt,
                     )
 
-
             movement.append({
                 "timestamp": item["timestamp_seconds"],
                 "frame_index": item["frame_index"],
@@ -231,15 +287,12 @@ def analyze_interactions(
                 "velocity": velocity,
             })
 
-
         observations[track_id] = movement
 
     findings = []
     track_ids = list(observations)
 
-
-
-    # Compare observations only when timestamps match.
+    # Compare observations only when timestamps match
     for i, first_id in enumerate(track_ids):
         for second_id in track_ids[i + 1:]:
             if (
@@ -268,7 +321,6 @@ def analyze_interactions(
                 for item in observations[second_id]
             }
 
-
             consecutive_matches = 0
             previous_timestamp = None
 
@@ -278,7 +330,7 @@ def analyze_interactions(
                 first = first_by_time[timestamp]
                 second = second_by_time[timestamp]
 
-                # Missing velocity breaks the confirmation sequence.
+                # Missing velocity breaks the confirmation sequence
                 if first["velocity"] is None or second["velocity"] is None:
                     consecutive_matches = 0
                     previous_timestamp = None
@@ -296,7 +348,7 @@ def analyze_interactions(
                 relative_vx = second["velocity"][0] - first["velocity"][0]
                 relative_vy = second["velocity"][1] - first["velocity"][1]
 
-                # Positive means the distance between objects is shrinking.
+                # Positive means the distance between objects is shrinking
                 closing_speed = -(
                     dx * relative_vx + dy * relative_vy
                 ) / distance
@@ -306,7 +358,26 @@ def analyze_interactions(
                     previous_timestamp = None
                     continue
 
-                # Confirmation requires consecutive qualifying timestamps.
+                # Compute Time-To-Collision (TTC)
+                ttc = calculate_ttc(distance, closing_speed)
+                if max_ttc_seconds is not None and ttc > max_ttc_seconds:
+                    consecutive_matches = 0
+                    previous_timestamp = None
+                    continue
+
+                # Compute scale-normalized distance and IoU if boxes exist
+                box_a = first.get("bbox_xyxy")
+                box_b = second.get("bbox_xyxy")
+                norm_dist = calculate_normalized_distance(distance, box_a, box_b)
+                current_iou = bbox_iou(box_a, box_b) or 0.0
+
+                if max_normalized_distance is not None and norm_dist is not None:
+                    if norm_dist > max_normalized_distance and current_iou <= 0.0:
+                        consecutive_matches = 0
+                        previous_timestamp = None
+                        continue
+
+                # Confirmation requires consecutive qualifying timestamps
                 if (
                     previous_timestamp is not None
                     and timestamp - previous_timestamp <= max_gap_seconds
@@ -320,21 +391,29 @@ def analyze_interactions(
                 if consecutive_matches < min_consecutive_matches:
                     continue
 
-                findings.append({
+                # Post-impact kinematic signal detection
+                signals_1 = detect_post_impact_kinematics(observations[first_id], timestamp) or []
+                signals_2 = detect_post_impact_kinematics(observations[second_id], timestamp) or []
+                combined_signals = list(set(signals_1 + signals_2))
+
+                finding_entry = {
                     "timestamp_seconds": timestamp,
                     "frame_index": first["frame_index"],
                     "track_ids": [first_id, second_id],
                     "consecutive_confirmation_count": consecutive_matches,
                     "distance_px": round(distance, 2),
                     "closing_speed_px_per_second": round(closing_speed, 2),
+                    "time_to_collision_seconds": round(ttc, 2) if math.isfinite(ttc) else None,
+                    "normalized_distance": round(norm_dist, 2) if norm_dist is not None else None,
+                    "bbox_iou": round(current_iou, 3),
+                    "post_impact_signals": combined_signals,
                     "finding": "POTENTIAL_APPROACHING_INTERACTION",
                     "confidence": "UNVALIDATED_HEURISTIC",
                     "limitations": [
-                        "Image-space distance is not real-world distance.",
-                        "A potential interaction does not establish a collision.",
+                        "Image-space distance is not real-world metric distance.",
+                        "A potential interaction indicates proximity dynamics for review.",
                     ],
-                })
-
+                }
+                findings.append(finding_entry)
 
     return findings
-

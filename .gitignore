@@ -65,3 +65,15 @@ ehthumbs.db
 outputs/*.mp4
 !outputs/uploaded_tracked_web.mp4
 
+
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
+
+# Ephemeral runtime outputs
+outputs/evidence/MG-*.png
+outputs/evidence/PI-*.jpg
+outputs/evidence/*crash*
+outputs/incident_dossiers/PI-0004*.pdf
+outputs/incident_dossiers/PI-0005*.pdf

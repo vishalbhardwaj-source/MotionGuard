@@ -205,11 +205,26 @@ def assess_event_risk(event):
     det_count = event.get("detection_count", 0)
     conf_count = event.get("peak_confirmation_count", 0)
 
-    # Heuristic scoring based on kinematics
-    if conf_count >= 3 and min_dist <= 15.0 and closing_speed >= 25.0:
+    min_ttc = event.get("minimum_ttc_seconds")
+    min_norm_dist = event.get("minimum_normalized_distance")
+    peak_iou = event.get("peak_bbox_iou", 0.0) or 0.0
+    signals = event.get("post_impact_signals", [])
+
+    has_post_impact = bool(signals)
+    contact_overlap = peak_iou >= 0.05
+    imminent_ttc = min_ttc is not None and min_ttc < 1.5
+
+    # Physics-grounded threat classification
+    if (contact_overlap or has_post_impact) and min_dist <= 30.0:
+        base_speed = 95.0
+        collision = True
+    elif conf_count >= 3 and min_dist <= 15.0 and closing_speed >= 25.0:
         base_speed = 90.0
         collision = True
-    elif conf_count >= 3 and (min_dist <= 15.0 or closing_speed >= 25.0):
+    elif imminent_ttc or (min_norm_dist is not None and min_norm_dist < 1.0):
+        base_speed = 75.0
+        collision = False
+    elif conf_count >= 3 and (min_dist <= 25.0 or closing_speed >= 25.0):
         base_speed = 75.0
         collision = False
     elif det_count >= 2:

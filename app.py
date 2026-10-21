@@ -599,7 +599,7 @@ if pipeline_run and pipeline_run.get("incidents_created"):
                 <b>Incident ID:</b> <code>{first_inc['incident_id']}</code> (Event <code>{first_inc['event_id']}</code>) &nbsp;|&nbsp;
                 <b>Threat Level:</b> <span style="color: #f87171; font-weight: bold;">{first_inc['threat_level']} ({first_inc['threat_score']}/100)</span> &nbsp;|&nbsp;
                 <b>Emergency Dispatch:</b> Delivered to <b>{recipient_name}</b> via <b>{channel_name}</b> (Message ID: <code>{msg_id}</code>)<br/>
-                <b>Forensic Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Courtroom PDF Dossier compiled.
+                <b>Forensic Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Investigation-Support PDF Dossier compiled.
             </div>
         </div>
         """,
@@ -832,11 +832,14 @@ with interaction_tab:
                 evidence_img = get_event_evidence_image(event)
 
                 if evidence_img and Path(evidence_img).exists():
-                    st.image(
-                        str(evidence_img),
-                        caption=f"Evidence frame for {event_id} ({event.get('evidence_timestamp_seconds', 0):.2f}s)",
-                        use_container_width=True,
-                    )
+                    try:
+                        st.image(
+                            str(evidence_img),
+                            caption=f"Evidence frame for {event_id} ({event.get('evidence_timestamp_seconds', 0):.2f}s)",
+                            use_container_width=True,
+                        )
+                    except Exception:
+                        st.warning(f"Could not render evidence image for {event_id}.")
                 else:
                     st.info(
                         f"No saved evidence image is available for {event_id}."
@@ -1164,10 +1167,13 @@ with incidents_tab:
                 with evidence_col:
                     image_path = Path(report.get("evidence_image", ""))
                     if image_path.is_file():
-                        st.image(
-                            str(image_path),
-                            caption=f"Evidence for {incident_id}",
-                        )
+                        try:
+                            st.image(
+                                str(image_path),
+                                caption=f"Evidence for {incident_id}",
+                            )
+                        except Exception:
+                            st.warning(f"Evidence preview unavailable ({image_path.name}).")
                     else:
                         st.warning("Evidence image not found.")
 
@@ -1333,7 +1339,10 @@ with video_tab:
                 with rc1:
                     ev_img = Path(inc.get("evidence_image", ""))
                     if ev_img.is_file():
-                        st.image(str(ev_img), caption=f"Forensic Snapshot: {inc['incident_id']} (Closest Approach)", use_container_width=True)
+                        try:
+                            st.image(str(ev_img), caption=f"Forensic Snapshot: {inc['incident_id']} (Closest Approach)", use_container_width=True)
+                        except Exception:
+                            st.warning(f"Snapshot unavailable ({ev_img.name}).")
                 with rc2:
                     pdf_file = Path(inc.get("pdf_path", ""))
                     if pdf_file.is_file():
@@ -1884,11 +1893,14 @@ with authority_tab:
         )
 
         if evidence_img_path and Path(evidence_img_path).exists():
-            st.image(
-                str(evidence_img_path),
-                caption=f"Forensic Evidence Frame · {event_id} ({selected_event.get('evidence_timestamp_seconds', 0):.2f}s)",
-                use_container_width=True,
-            )
+            try:
+                st.image(
+                    str(evidence_img_path),
+                    caption=f"Forensic Evidence Frame · {event_id} ({selected_event.get('evidence_timestamp_seconds', 0):.2f}s)",
+                    use_container_width=True,
+                )
+            except Exception:
+                st.warning("Evidence frame preview could not be rendered.")
         else:
             st.warning("Evidence image is unavailable for this event.")
 

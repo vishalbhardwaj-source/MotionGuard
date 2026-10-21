@@ -1,21 +1,20 @@
-
 import json
+from pathlib import Path
+from PIL import Image
 
 from src.risk_engine import assess_risk
 from src.reporting import create_incident_report
 
 
-from pathlib import Path
-
-
-def test_create_incident_report():
+def test_create_incident_report(tmp_path):
     risk = assess_risk(
         speed_kmh=80,
         speed_limit_kmh=50,
     )
 
-    base_dir = Path(__file__).resolve().parent
-    evidence_path = base_dir / "outputs" / "evidence" / "test_frame.png"
+    evidence_path = tmp_path / "valid_test_frame.png"
+    img = Image.new("RGB", (32, 32), color=(255, 0, 0))
+    img.save(evidence_path, "PNG")
 
     report = create_incident_report(
         risk_result=risk,
@@ -32,5 +31,7 @@ def test_create_incident_report():
 
 
 if __name__ == "__main__":
-    test_create_incident_report()
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        test_create_incident_report(Path(td))
     print("\nReport generated successfully!")

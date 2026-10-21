@@ -9,6 +9,7 @@ from src.reporting import create_incident_report
 from src.pdf_report import create_interaction_pdf
 from src.alert_dispatcher import format_emergency_sms, dispatch_sms, log_sms_dispatch
 from src.video_processor import save_frame, extract_and_annotate_event_evidence
+from src.config import load_config
 
 
 OUTPUT_DIR = Path("outputs")
@@ -35,8 +36,8 @@ def run_automated_incident_pipeline(
       2. Pinpoints highest-risk collision events (small distance, high closing speed).
       3. Extracts and annotates the visual evidence snapshot.
       4. Automatically creates the official incident report.
-      5. Automatically compiles the courtroom-ready PDF dossier.
-      6. Automatically dispatches real-time smartphone alerts (Telegram / SMS).
+      5. Automatically compiles the forensic decision-support PDF dossier.
+      6. Dispatches real-time smartphone alerts (Telegram with snapshot / SMS) with cooldown rate-limiting.
     """
     video_file = Path(video_path)
     if not video_file.is_file():
@@ -76,8 +77,18 @@ def run_automated_incident_pipeline(
             rec["center_xy"] = [(x1 + x2) / 2, (y1 + y2) / 2]
         normalized_records.append(rec)
 
-    # Step 3: Analyze interactions and aggregate episodes
-    findings = analyze_interactions(normalized_records)
+    # Step 3: Analyze interactions and aggregate episodes with config-driven heuristics
+    cfg = load_config()
+    k_cfg = cfg.get("kinematics", {})
+    findings = analyze_interactions(
+        normalized_records,
+        proximity_threshold_px=k_cfg.get("proximity_threshold_px", 80.0),
+        min_closing_speed_px_s=k_cfg.get("min_closing_speed_px_s", 5.0),
+        max_gap_seconds=k_cfg.get("max_gap_seconds", 0.2),
+        min_consecutive_matches=k_cfg.get("min_consecutive_matches", 3),
+        max_ttc_seconds=k_cfg.get("max_ttc_seconds", 3.5),
+        max_normalized_distance=k_cfg.get("max_normalized_distance", 1.8),
+    )
     events = aggregate_interaction_events(findings)
 
     # Persist aggregated events
@@ -174,6 +185,7 @@ def run_automated_incident_pipeline(
             sms_text = format_emergency_sms(
                 event,
                 camera_name=camera_name,
+                camera_id="CAM-01",
                 incident_type="CRITICAL VEHICLE ACCIDENT / COLLISION DETECTED",
             )
             # Add live incident ID and dossier notice
@@ -183,6 +195,8 @@ def run_automated_incident_pipeline(
             dispatch_res = dispatch_sms(
                 phone_number=recipient_phone,
                 message_text=sms_text,
+                photo_path=valid_evidence,
+                camera_id="CAM-01",
                 gateway_mode=gateway_mode,
             )
             log_sms_dispatch(dispatch_res)

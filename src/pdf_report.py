@@ -20,7 +20,7 @@ from src.risk_engine import assess_event_risk
 
 
 def create_interaction_pdf(event, evidence_path=None):
-    """Create a comprehensive, courtroom-ready PDF for a MotionGuard interaction event."""
+    """Create a comprehensive, forensic investigation-support PDF dossier for a MotionGuard interaction event."""
     buffer = BytesIO()
 
     document = SimpleDocTemplate(

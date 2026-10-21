@@ -203,6 +203,8 @@ def track_video(
     trajectory_output_path=None,
     imgsz=640,
     frame_skip=0,
+    classes=(2, 3, 5, 7),
+    tracker="bytetrack.yaml",
 ):
     """Track objects in a video and save an annotated MP4.
 
@@ -281,10 +283,12 @@ def track_video(
 
             raw_frame_index += 1
 
+            target_classes = list(classes) if classes is not None else None
             result = model.track(
                 source=frame,
                 persist=True,
-                tracker="bytetrack.yaml",
+                tracker=tracker,
+                classes=target_classes,
                 device=device,
                 half=use_half,
                 imgsz=imgsz,
@@ -526,6 +530,8 @@ def track_video(
         "frames_processed": frames_processed,
         "frames_with_tracks": frames_with_tracks,
         "distinct_track_ids_observed": len(track_ids_seen),
+        "tracker_algorithm": tracker,
+        "classes_filtered": list(classes) if classes is not None else "ALL",
         "fps": fps,
         "width": info["width"],
         "height": info["height"],
