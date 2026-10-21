@@ -20,6 +20,10 @@ from src.video_processor import (
     create_event_clip,
     extract_and_annotate_event_evidence,
 )
+import sys
+import importlib
+import src.alert_dispatcher
+importlib.reload(src.alert_dispatcher)
 from src.alert_dispatcher import (
     format_emergency_sms,
     dispatch_sms,

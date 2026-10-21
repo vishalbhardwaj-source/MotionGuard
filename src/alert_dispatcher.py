@@ -81,6 +81,7 @@ def format_emergency_sms(
     incident_id=None,
     threat_level=None,
     threat_score=None,
+    **kwargs,
 ):
     """
     Format a highly structured, operational emergency dispatch alert for traffic authorities,
