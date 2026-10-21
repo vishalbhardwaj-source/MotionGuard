@@ -65,6 +65,10 @@ ehthumbs.db
 outputs/*.mp4
 !outputs/uploaded_tracked_web.mp4
 
+# PyTorch weights & YOLO model checkpoints (downloaded dynamically via scripts/download_model.py)
+*.pt
+yolo11n.pt
+
 
 # SQLite databases
 *.db

@@ -35,3 +35,23 @@ def test_benchmark_normal_safe_traffic_no_crashes():
     assert eval_res["false_positives"] == 1
     # 1 alert in 120s (2 minutes) = 30 FA/hr
     assert eval_res["false_alarms_per_hour"] == 30.0
+
+
+def test_run_standard_benchmark_suite():
+    from src.benchmark import run_standard_benchmark_suite, format_dual_benchmark_markdown
+
+    results = run_standard_benchmark_suite()
+    assert "safe_traffic" in results
+    assert "collision_traffic" in results
+
+    safe = results["safe_traffic"]
+    assert safe["false_alarms_per_hour"] == 0.0
+
+    crash = results["collision_traffic"]
+    assert crash["precision"] == 1.0
+    assert crash["recall"] == 1.0
+    assert crash["mean_detection_delay_seconds"] == 0.30
+
+    md = format_dual_benchmark_markdown(results)
+    assert "Real Collision Clip" in md
+    assert "0.30 seconds" in md

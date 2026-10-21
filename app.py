@@ -499,6 +499,22 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    st.markdown("##### 🔐 Operator Access Gate")
+    CORRECT_PIN = os.getenv("OPERATOR_PIN", "1234")
+    pin_input = st.text_input(
+        "Operator Security PIN",
+        type="password",
+        value=st.session_state.get("operator_pin", ""),
+        help="Enter operator PIN (default: 1234) to authorize live dispatches and evidence submissions.",
+        key="operator_pin_input",
+    )
+    st.session_state["operator_pin"] = pin_input
+    is_operator_authenticated = (pin_input == CORRECT_PIN)
+    if is_operator_authenticated:
+        st.caption("🟢 **Authorized Operator Mode Active**")
+    else:
+        st.caption("🔒 **Simulator Mode (Read-Only Gate)** — Enter PIN `1234` for live external broadcasts.")
+
     st.markdown("##### 🎯 Quick Demonstration Videos")
     st.caption("Click to load pre-verified benchmarks into active session:")
     if st.button("🚨 Highway Crash (5.5s Collision)", use_container_width=True):
@@ -552,7 +568,7 @@ st.markdown(
         <div class="kpi-card" style="border-left: 3px solid #38bdf8;">
             <div class="kpi-label">📋 Logged Incidents</div>
             <div class="kpi-value">{len(reports)}</div>
-            <div class="kpi-caption">Verified forensic audit records</div>
+            <div class="kpi-caption">Incident investigation audit records</div>
         </div>
         <div class="kpi-card" style="border-left: 3px solid #ef4444;">
             <div class="kpi-label" style="color: #f87171;">🚨 Critical Collisions</div>
@@ -599,20 +615,22 @@ if pipeline_run and pipeline_run.get("incidents_created"):
                 <b>Incident ID:</b> <code>{first_inc['incident_id']}</code> (Event <code>{first_inc['event_id']}</code>) &nbsp;|&nbsp;
                 <b>Threat Level:</b> <span style="color: #f87171; font-weight: bold;">{first_inc['threat_level']} ({first_inc['threat_score']}/100)</span> &nbsp;|&nbsp;
                 <b>Emergency Dispatch:</b> Delivered to <b>{recipient_name}</b> via <b>{channel_name}</b> (Message ID: <code>{msg_id}</code>)<br/>
-                <b>Forensic Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Investigation-Support PDF Dossier compiled.
+                <b>Investigation Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Investigation-Support PDF Dossier compiled.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-video_tab, interaction_tab, scenario_tab, incidents_tab, authority_tab = st.tabs(
+is_operator_authenticated = (st.session_state.get("operator_pin", "") == os.getenv("OPERATOR_PIN", "1234"))
+
+video_tab, interaction_tab, scenario_tab, incidents_tab, dossier_tab = st.tabs(
     [
         "📹 Video Analysis",
         "🔍 Interaction Investigation",
         "⚖️ Risk Scenario",
         "🚨 Incident Command",
-        "📋 Authority Dossier & PDF",
+        "📋 Review & Dispatch Dossier",
     ]
 )
 
@@ -931,7 +949,7 @@ with scenario_tab:
                     ),
                 )
 
-                # Automatically compile official PDF dossier
+                # Automatically compile investigation support PDF dossier
                 dossier_path = OUTPUT_DIR / "incident_dossiers" / f"{report['incident_id']}_dossier.pdf"
                 dossier_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -973,6 +991,9 @@ with scenario_tab:
                             threat_score=risk["threat_score"],
                         )
                         chosen_mode = "TELEGRAM" if "Telegram" in tab3_gw else ("TWILIO" if "Twilio" in tab3_gw else "SIMULATOR")
+                        if chosen_mode != "SIMULATOR" and not is_operator_authenticated:
+                            st.warning("🔒 External telecommunications gate locked: Valid Operator PIN required. Defaulting to local simulator.")
+                            chosen_mode = "SIMULATOR"
                         sms_res = dispatch_sms(alert_phone, sms_text, gateway_mode=chosen_mode)
                         log_sms_dispatch(sms_res)
                         st.success(f"📱 Emergency Alert Dispatched to {sms_res['recipient']} ({sms_res['channel']})!")
@@ -1242,7 +1263,7 @@ with video_tab:
             <h4 style="margin: 0 0 6px 0; color: #f87171;">⚡ Autonomous Accident Detection & Emergency Dispatch Hub</h4>
             <p style="margin: 0; font-size: 0.88rem; color: #cbd5e1; line-height: 1.4;">
                 <b>Full End-to-End Automation:</b> As soon as an accident or critical collision is detected, MotionGuard automatically
-                <b>sends an emergency text alert to your phone (Telegram/SMS)</b>, <b>logs the incident</b>, and <b>generates the official forensic PDF dossier</b>.
+                <b>sends an emergency text alert to your phone (Telegram/SMS)</b>, <b>logs the incident</b>, and <b>generates the investigation support PDF dossier</b>.
             </p>
         </div>
         """,
@@ -1327,7 +1348,7 @@ with video_tab:
                             </span>
                         </div>
                         <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.45;">
-                            <b>Official Incident ID:</b> <code>{inc['incident_id']}</code> &nbsp;|&nbsp;
+                            <b>Incident Record ID:</b> <code>{inc['incident_id']}</code> &nbsp;|&nbsp;
                             <b>Timestamp:</b> <code>{inc['timestamp']:.2f}s</code> &nbsp;|&nbsp;
                             <b>Threat Level:</b> <span style="color: #ef4444; font-weight: bold;">{inc['threat_level']}</span><br/>
                             <b>Live Smartphone Alert:</b> <span style="color: #34d399; font-weight: 600;">{disp.get('status', 'DELIVERED')}</span> via <b>{disp.get('channel', 'TELEGRAM_ALERT')}</b> (Message ID: <code>{disp.get('message_id', 'N/A')}</code>) to <b>{disp.get('recipient', 'You')}</b>
@@ -1342,14 +1363,14 @@ with video_tab:
                     ev_img = Path(inc.get("evidence_image", ""))
                     if ev_img.is_file():
                         try:
-                            st.image(str(ev_img), caption=f"Forensic Snapshot: {inc['incident_id']} (Closest Approach)", use_container_width=True)
+                            st.image(str(ev_img), caption=f"Evidence Snapshot: {inc['incident_id']} (Closest Approach)", use_container_width=True)
                         except Exception:
                             st.warning(f"Snapshot unavailable ({ev_img.name}).")
                 with rc2:
                     pdf_file = Path(inc.get("pdf_path", ""))
                     if pdf_file.is_file():
                         st.download_button(
-                            label=f"📄 Download Official PDF Dossier ({inc['incident_id']})",
+                            label=f"📄 Download Investigation Support Dossier ({inc['incident_id']})",
                             data=pdf_file.read_bytes(),
                             file_name=f"{inc['incident_id']}_dossier.pdf",
                             mime="application/pdf",
@@ -1793,11 +1814,10 @@ with video_tab:
                         f"Could not create incident report or replay: {error}"
                     )
 
-with authority_tab:
-    st.subheader("Authority Notification Centre")
+with dossier_tab:
+    st.subheader("Investigation Support & Dispatch Centre")
     st.caption(
-        "Review investigation evidence and prepare a simulated notification. "
-        "No real authority is contacted."
+        "Review incident evidence, inspect explainable risk vectors, and record local investigation reviews or simulated/authorized text dispatches."
     )
 
     events = read_interaction_events()
@@ -1898,7 +1918,7 @@ with authority_tab:
             try:
                 st.image(
                     str(evidence_img_path),
-                    caption=f"Forensic Evidence Frame · {event_id} ({selected_event.get('evidence_timestamp_seconds', 0):.2f}s)",
+                    caption=f"Evidence Keyframe · {event_id} ({selected_event.get('evidence_timestamp_seconds', 0):.2f}s)",
                     use_container_width=True,
                 )
             except Exception:
@@ -2112,9 +2132,31 @@ with authority_tab:
                 unsafe_allow_html=True,
             )
 
-        if st.button("🚨 Dispatch Emergency Text Alert Now", type="primary", key=f"btn_send_sms_{event_id}"):
+        is_external_gw = "Twilio" in sms_gateway or "Telegram" in sms_gateway
+        confirm_live_dispatch = False
+        if is_external_gw:
+            if not is_operator_authenticated:
+                st.warning("🔒 **External Broadcast Locked:** Enter valid Operator Security PIN in the sidebar to authorize live telecommunications delivery.")
+            else:
+                confirm_live_dispatch = st.checkbox(
+                    "⚠️ **Operator Confirmation:** I confirm authorization to transmit a live external emergency alert to the designated contact.",
+                    value=False,
+                    key=f"confirm_live_broadcast_{event_id}",
+                )
+
+        dispatch_locked = is_external_gw and (not is_operator_authenticated or not confirm_live_dispatch)
+
+        if st.button(
+            "🚨 Dispatch Emergency Text Alert Now",
+            type="primary",
+            key=f"btn_send_sms_{event_id}",
+            disabled=dispatch_locked,
+        ):
             try:
                 selected_mode = "TWILIO" if "Twilio" in sms_gateway else ("TELEGRAM" if "Telegram" in sms_gateway else "SIMULATOR")
+                if selected_mode != "SIMULATOR" and (not is_operator_authenticated or not confirm_live_dispatch):
+                    st.error("Operator authentication and confirmation required for live external dispatch.")
+                    return
                 dispatch_res = dispatch_sms(
                     phone_number=dest_phone,
                     message_text=sms_body,
@@ -2140,7 +2182,7 @@ with authority_tab:
     st.divider()
     st.markdown("### Dispatch & Notification History")
 
-    history_tab1, history_tab2 = st.tabs(["📋 Formal Authority Notifications", "📱 Text / SMS Dispatches Log"])
+    history_tab1, history_tab2 = st.tabs(["📋 Recorded Investigation Notifications", "📱 Text / SMS Dispatches Log"])
 
     with history_tab1:
         notifications = read_notification_log()

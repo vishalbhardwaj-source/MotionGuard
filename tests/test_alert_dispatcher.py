@@ -74,20 +74,34 @@ def test_cooldown_rate_limit():
     reset_dispatch_cooldowns()
     cam = "CAM-TEST-01"
     # First dispatch allowed
-    assert check_dispatch_cooldown(cam, cooldown_seconds=60) is True
-    # Immediate second dispatch throttled
-    assert check_dispatch_cooldown(cam, cooldown_seconds=60) is False
+    assert check_dispatch_cooldown(cam, cooldown_seconds=60, threat_score=40, threat_level="HIGH") is True
+    # Immediate second dispatch with same severity throttled
+    assert check_dispatch_cooldown(cam, cooldown_seconds=60, threat_score=40, threat_level="HIGH") is False
 
     # Throttled dispatch returns rate limited result
     res = dispatch_sms(
         "+919876543210",
         "Test message",
         camera_id=cam,
+        threat_score=40,
+        threat_level="HIGH",
         cooldown_seconds=60,
         gateway_mode="SIMULATOR",
     )
     assert res["success"] is False
     assert res["status"] == "RATE_LIMITED"
+
+    # Severity escalation (CRITICAL collision score 95) bypasses active cooldown!
+    res_esc = dispatch_sms(
+        "+919876543210",
+        "CRITICAL ESCALATED COLLISION",
+        camera_id=cam,
+        threat_score=95,
+        threat_level="CRITICAL",
+        cooldown_seconds=60,
+        gateway_mode="SIMULATOR",
+    )
+    assert res_esc["success"] is True
 
 
 @patch("src.alert_dispatcher.requests.post")

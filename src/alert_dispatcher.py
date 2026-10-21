@@ -10,18 +10,62 @@ import requests
 _DISPATCH_COOLDOWN_CACHE = {}
 
 
-def check_dispatch_cooldown(camera_id="DEFAULT_CAMERA", cooldown_seconds=60):
+from collections import namedtuple
+
+def check_dispatch_cooldown(
+    camera_id="DEFAULT_CAMERA",
+    cooldown_seconds=60,
+    threat_score=0,
+    threat_level="LOW",
+):
     """
     Check and enforce per-camera alert rate limits.
-    Returns True if dispatch is allowed, False if within cooldown period.
+    Allows dispatch if:
+      1. Cooldown interval has elapsed, OR
+      2. Severity Escalation: The new incident is higher priority (CRITICAL level,
+         or threat score exceeds the prior alert by >= 15 points).
+    Returns boolean True if dispatch is allowed, False otherwise.
     """
     now = datetime.datetime.now().timestamp()
-    last_time = _DISPATCH_COOLDOWN_CACHE.get(camera_id, 0.0)
-    if (now - last_time) < cooldown_seconds:
-        return False
-    _DISPATCH_COOLDOWN_CACHE[camera_id] = now
-    return True
+    record = _DISPATCH_COOLDOWN_CACHE.get(camera_id)
 
+    if record is None:
+        _DISPATCH_COOLDOWN_CACHE[camera_id] = {
+            "timestamp": now,
+            "threat_score": threat_score,
+            "threat_level": str(threat_level),
+            "last_reason": "INITIAL_DISPATCH",
+        }
+        return True
+
+    elapsed = now - record["timestamp"]
+    last_score = record.get("threat_score", 0)
+    last_level = record.get("threat_level", "LOW")
+
+    # Severity escalation bypass: a critical collision or jump in threat overrides cooldown
+    is_escalation = (
+        (threat_level == "CRITICAL" and last_level != "CRITICAL")
+        or (threat_score >= last_score + 15 and threat_score >= 70)
+    )
+
+    if elapsed < cooldown_seconds:
+        if is_escalation:
+            _DISPATCH_COOLDOWN_CACHE[camera_id] = {
+                "timestamp": now,
+                "threat_score": threat_score,
+                "threat_level": str(threat_level),
+                "last_reason": "SEVERITY_ESCALATION_BYPASS",
+            }
+            return True
+        return False
+
+    _DISPATCH_COOLDOWN_CACHE[camera_id] = {
+        "timestamp": now,
+        "threat_score": threat_score,
+        "threat_level": str(threat_level),
+        "last_reason": "COOLDOWN_ELAPSED",
+    }
+    return True
 
 def reset_dispatch_cooldowns():
     """Clear in-memory dispatch cooldowns (useful for tests)."""
@@ -148,6 +192,8 @@ def dispatch_sms(
     telegram_chat_id=None,
     photo_path=None,
     camera_id=None,
+    threat_score=None,
+    threat_level=None,
     cooldown_seconds=None,
     gateway_mode="AUTO",
 ):
@@ -162,14 +208,20 @@ def dispatch_sms(
     now_iso = datetime.datetime.now().astimezone().isoformat()
     mode = (gateway_mode or "AUTO").upper()
 
-    # Rate limiting / cooldown check
+    # Rate limiting / cooldown check with severity escalation bypass
     if cooldown_seconds and camera_id:
-        if not check_dispatch_cooldown(camera_id, cooldown_seconds):
+        allowed = check_dispatch_cooldown(
+            camera_id=camera_id,
+            cooldown_seconds=cooldown_seconds,
+            threat_score=threat_score or 0,
+            threat_level=threat_level or "LOW",
+        )
+        if not allowed:
             return {
                 "success": False,
                 "channel": "RATE_LIMIT_COOLDOWN",
                 "status": "RATE_LIMITED",
-                "error": f"Dispatch throttled: Camera {camera_id} is in cooldown ({cooldown_seconds}s limit).",
+                "error": f"Dispatch throttled: Camera {camera_id} is in active cooldown.",
                 "recipient": clean_phone,
                 "dispatched_at": now_iso,
             }

@@ -64,6 +64,32 @@ def calculate_ttc(distance_px, closing_speed_px_s):
     return distance_px / closing_speed_px_s
 
 
+def calculate_monocular_scale_ttc(box_current, box_previous, dt):
+    """
+    Calculate optical scale-growth Time-To-Collision (Lee's Tau: tau = s / (ds/dt)).
+    Estimates time to impact purely from bounding box expansion rate,
+    making it robust to monocular perspective foreshortening.
+    """
+    if (
+        not box_current
+        or not box_previous
+        or len(box_current) != 4
+        or len(box_previous) != 4
+        or dt <= 0.001
+    ):
+        return float("inf")
+
+    s_curr = math.sqrt(abs(box_current[2] - box_current[0]) * abs(box_current[3] - box_current[1]))
+    s_prev = math.sqrt(abs(box_previous[2] - box_previous[0]) * abs(box_previous[3] - box_previous[1]))
+
+    growth_rate = (s_curr - s_prev) / dt
+    if growth_rate <= 0.05:
+        return float("inf")
+
+    tau = s_curr / growth_rate
+    return max(0.0, tau)
+
+
 def detect_post_impact_kinematics(observations, contact_time, window_seconds=0.6, drop_ratio=0.40):
     """
     Detect post-impact kinematic anomalies: sudden deceleration or vehicle stopping
@@ -396,6 +422,19 @@ def analyze_interactions(
                 signals_2 = detect_post_impact_kinematics(observations[second_id], timestamp) or []
                 combined_signals = list(set(signals_1 + signals_2))
 
+                # Optical Tau TTC calculation if consecutive boxes exist
+                tau_a = float("inf")
+                tau_b = float("inf")
+                if previous_timestamp is not None:
+                    prev_first = first_by_time.get(previous_timestamp)
+                    prev_second = second_by_time.get(previous_timestamp)
+                    p_dt = timestamp - previous_timestamp
+                    if prev_first and p_dt > 0:
+                        tau_a = calculate_monocular_scale_ttc(box_a, prev_first.get("bbox_xyxy"), p_dt)
+                    if prev_second and p_dt > 0:
+                        tau_b = calculate_monocular_scale_ttc(box_b, prev_second.get("bbox_xyxy"), p_dt)
+                min_tau = min(tau_a, tau_b)
+
                 finding_entry = {
                     "timestamp_seconds": timestamp,
                     "frame_index": first["frame_index"],
@@ -404,6 +443,7 @@ def analyze_interactions(
                     "distance_px": round(distance, 2),
                     "closing_speed_px_per_second": round(closing_speed, 2),
                     "time_to_collision_seconds": round(ttc, 2) if math.isfinite(ttc) else None,
+                    "optical_tau_ttc_seconds": round(min_tau, 2) if math.isfinite(min_tau) else None,
                     "normalized_distance": round(norm_dist, 2) if norm_dist is not None else None,
                     "bbox_iou": round(current_iou, 3),
                     "post_impact_signals": combined_signals,

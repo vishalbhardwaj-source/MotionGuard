@@ -293,3 +293,18 @@ def test_post_impact_kinematics_detection():
     signals = detect_post_impact_kinematics(obs, contact_time=1.0)
     assert signals is not None
     assert "SUDDEN_DECELERATION" in signals or "VEHICLE_STOPPED_AFTER_CONTACT" in signals
+
+
+def test_monocular_scale_ttc():
+    from src.interaction_analysis import calculate_monocular_scale_ttc
+
+    # Box growing from 50x50 to 60x60 in 0.1s
+    # scale_prev = 50, scale_curr = 60, growth = 100/s -> tau = 60 / 100 = 0.60s
+    box_prev = [0, 0, 50, 50]
+    box_curr = [0, 0, 60, 60]
+    tau = calculate_monocular_scale_ttc(box_curr, box_prev, dt=0.1)
+    assert round(tau, 2) == 0.60
+
+    # Shrinking or stagnant box returns inf
+    box_shrink = [0, 0, 45, 45]
+    assert calculate_monocular_scale_ttc(box_shrink, box_curr, dt=0.1) == float("inf")
