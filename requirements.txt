@@ -9,7 +9,6 @@ ultralytics>=8.2.0
 opencv-python>=4.8.0
 pillow>=10.0.0
 numpy>=1.24.0
-lap>=0.4.0
 
 # Deep Learning Framework (CPU or CUDA)
 torch>=2.1.0
@@ -17,6 +16,9 @@ torchvision>=0.16.0
 
 # Data Science & Tabular Analytics
 pandas>=2.0.0
+
+# Configuration Management
+pyyaml>=6.0
 
 # Forensic PDF Dossier Generation
 reportlab>=4.0.0
