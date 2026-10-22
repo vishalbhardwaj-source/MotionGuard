@@ -30,6 +30,11 @@ from src.alert_dispatcher import (
 from src.incident_pipeline import run_automated_incident_pipeline
 from src.overview_page import render_project_overview_page
 from src.welcome_page import render_welcome_page
+from src.gemini_service import (
+    get_gemini_api_key,
+    test_gemini_connection,
+    generate_gemini_triage_analysis,
+)
 
 
 st.set_page_config(
@@ -502,6 +507,82 @@ def render_explainable_risk_card(risk_data, title="Explainable Risk Factor Break
             )
 
 
+def render_gemini_analysis_card(event, risk_data, evidence_image_path=None, context_prefix=""):
+    """Render Gemini multimodal AI forensic analysis card."""
+    event_id = event.get("event_id", "EVT-UNKNOWN")
+    cache_key = f"gemini_analysis_{context_prefix}_{event_id}"
+    cached = st.session_state.get(cache_key)
+
+    key_present = bool(get_gemini_api_key())
+    badge_status = "Google Gemini 3.5 Ready" if key_present else "Gemini API Key Required"
+    badge_color = "#38bdf8" if key_present else "#f59e0b"
+
+    st.markdown(
+        f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 4px;">
+            <span style="font-weight: 700; font-size: 0.95rem; color: #f8fafc;">🤖 Gemini Multimodal AI Forensic Intelligence</span>
+            <span style="background: rgba(56, 189, 248, 0.15); color: {badge_color}; border: 1px solid {badge_color}; border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700;">
+                {badge_status}
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_info, col_btn = st.columns([2, 1])
+    with col_info:
+        st.caption("Deep reasoning over kinematic telemetry and visual keyframes via Google Gemini 3.5 Flash.")
+    with col_btn:
+        btn_label = "Re-analyze with Gemini" if cached else "✨ Run Gemini Analysis"
+        run_analysis = st.button(btn_label, key=f"btn_gemini_{context_prefix}_{event_id}", use_container_width=True)
+
+    if run_analysis:
+        with st.spinner("Querying Google Gemini Multimodal AI..."):
+            result = generate_gemini_triage_analysis(
+                event=event,
+                risk_result=risk_data,
+                image_path=evidence_image_path,
+            )
+            st.session_state[cache_key] = result
+            cached = result
+
+    if cached:
+        model = cached.get("model", "gemini-3.5-flash")
+        summary = cached.get("summary", "")
+        multimodal = cached.get("multimodal", False)
+        status = cached.get("status", "SUCCESS")
+        
+        mode_badge = "Vision + Kinematics (Multimodal)" if multimodal else "Kinematics Analysis"
+        status_color = "#38bdf8" if status == "SUCCESS" else "#94a3b8"
+
+        st.markdown(
+            f"""
+            <div style="
+                border: 1px solid #38bdf8;
+                border-left: 4px solid #38bdf8;
+                background: rgba(15, 23, 42, 0.85);
+                border-radius: 8px;
+                padding: 14px;
+                margin-top: 8px;
+                margin-bottom: 12px;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 0.90rem;">
+                        ✦ Gemini Safety & Incident Assessment
+                    </span>
+                    <span style="background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border-radius: 4px; padding: 2px 8px; font-size: 0.74rem; font-weight: 600;">
+                        {model} · {mode_badge}
+                    </span>
+                </div>
+                <div style="color: #f1f5f9; font-size: 0.88rem; line-height: 1.55; white-space: pre-wrap;">
+{summary}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 # Sidebar Telemetry & Quick Presets
 with st.sidebar:
     st.markdown(
@@ -570,6 +651,10 @@ with st.sidebar:
             <div style="display: flex; justify-content: space-between;">
                 <span style="color: #94a3b8;">Audit Standards</span>
                 <span style="color: #cbd5e1;">Explainable Multi-Factor</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #94a3b8;">Forensic AI Agent</span>
+                <span style="color: {'#38bdf8' if get_gemini_api_key() else '#94a3b8'}; font-weight: 600;">{'● Gemini 3.5 Active' if get_gemini_api_key() else '○ Offline Sim'}</span>
             </div>
         </div>
         """,
@@ -1018,6 +1103,14 @@ with interaction_tab:
                     st.info(
                         f"No saved evidence image is available for {event_id}."
                     )
+
+                # Gemini Multimodal AI Forensic Intelligence
+                render_gemini_analysis_card(
+                    event=event,
+                    risk_data=event_risk,
+                    evidence_image_path=evidence_img,
+                    context_prefix="event_details",
+                )
 
                 # Incident Clip Export (±2.5s window with telemetry HUD)
                 clip_col1, clip_col2 = st.columns([1, 1])
@@ -2269,6 +2362,14 @@ with dossier_tab:
         # Explainable Risk Breakdown in Authority Dossier
         dossier_risk = assess_event_risk(selected_event)
         render_explainable_risk_card(dossier_risk, title=f"Explainable Risk Breakdown · {event_id}")
+
+        # Gemini Multimodal AI Forensic Intelligence
+        render_gemini_analysis_card(
+            event=selected_event,
+            risk_data=dossier_risk,
+            evidence_image_path=evidence_img_path,
+            context_prefix="dossier",
+        )
 
         st.divider()
 

@@ -360,56 +360,342 @@ def assess_risk(
     }
 
 
+# ==============================================================================
+# Round 2: Centralized Image-Space Risk Scorer Configuration
+# ==============================================================================
+IMAGE_SPACE_RISK_THRESHOLDS = {
+    # Distance thresholds (pixels) - smaller distance means closer proximity / higher threat
+    "distance_critical_px": 15.0,
+    "distance_moderate_px": 45.0,
+    "distance_nominal_px": 80.0,
+
+    # Closing speed thresholds (px/s) - higher speed means rapid approach / higher threat
+    "closing_speed_critical_px_s": 30.0,
+    "closing_speed_moderate_px_s": 15.0,
+    "closing_speed_nominal_px_s": 5.0,
+
+    # Persistence and confirmation frame thresholds
+    "detection_count_confirmed": 3,
+    "confirmation_count_critical": 4,
+}
+EVENT_RISK_THRESHOLDS = IMAGE_SPACE_RISK_THRESHOLDS
+
+
+def prune_nominal_interactions(events, min_threat_score=25.0):
+    """
+    Intelligent candidate event pruning.
+    Prunes low-threat background jitter and nominal passing events from the candidate queue.
+    """
+    if not events:
+        return []
+    pruned = []
+    for ev in events:
+        try:
+            risk = assess_event_risk(ev)
+            if risk.get("threat_score", 0) >= min_threat_score:
+                pruned.append(ev)
+        except Exception:
+            pruned.append(ev)
+    return pruned
+
+
+def _build_insufficient_data_risk(event=None):
+    """Fallback risk report when event lacks distance telemetry (Edge case)."""
+    event = event or {}
+    severity = classify_severity(event)
+    crit_dist = IMAGE_SPACE_RISK_THRESHOLDS["distance_critical_px"]
+    mod_dist = IMAGE_SPACE_RISK_THRESHOLDS["distance_moderate_px"]
+    crit_speed = IMAGE_SPACE_RISK_THRESHOLDS["closing_speed_critical_px_s"]
+
+    factor_breakdown = [
+        {
+            "factor": "Potential path conflict",
+            "status": "clear",
+            "display_status": "Clear",
+            "detail": "Insufficient trajectory distance data to assess convergence path.",
+            "badge": "🟢 CLEAR",
+        },
+        {
+            "factor": "Close proximity",
+            "status": "insufficient data",
+            "display_status": "Insufficient Data",
+            "detail": f"Measured separation: N/A (threshold: <= {crit_dist:.1f} px for detected, <= {mod_dist:.1f} px for moderate).",
+            "badge": "⚪ INSUFFICIENT DATA",
+        },
+        {
+            "factor": "Rapid approach",
+            "status": "insufficient data",
+            "display_status": "Insufficient Data",
+            "detail": f"Measured closing speed: N/A (threshold: >= {crit_speed:.1f} px/s for detected).",
+            "badge": "⚪ INSUFFICIENT DATA",
+        },
+        {
+            "factor": "Collision confirmation",
+            "status": "not indicated",
+            "display_status": "Not Indicated",
+            "detail": "No physical contact overlap or post-impact kinetic cessation detected.",
+            "badge": "🟢 NOT INDICATED",
+        },
+    ]
+
+    reasons = [
+        "Image-space kinematic threat assessed at LOW (10/100).",
+        "Potential path conflict: clear.",
+        "Close proximity: insufficient data.",
+        "Rapid approach: insufficient data.",
+        "Collision confirmation: not indicated.",
+    ]
+
+    return {
+        "threat_score": 10,
+        "threat_level": "LOW",
+        "event_status": "LOW_THREAT_INTERACTION",
+        "severity": severity,
+        "speed_kmh": None,
+        "speed_limit_kmh": None,
+        "overspeed_ratio": None,
+        "speed_source": "IMAGE_SPACE_VIDEO_EVENT",
+        "reasons": reasons,
+        "factor_breakdown": factor_breakdown,
+        "explainability_summary": (
+            f"Threat score 10/100 (LOW) assigned based on image-space pixel metrics: "
+            f"event lacks sufficient tracking distance data."
+        ),
+        "thresholds_used": dict(IMAGE_SPACE_RISK_THRESHOLDS),
+    }
+
+
 def assess_event_risk(event):
     """
     Derive an explainable risk assessment directly from a detected video interaction event.
+    Evaluates risk purely in image space (pixels and pixels per second) with no invented speeds.
     """
-    min_dist = event.get("minimum_distance_px", float("inf"))
-    closing_speed = event.get("peak_closing_speed_px_per_second", 0.0)
-    det_count = event.get("detection_count", 0)
-    conf_count = event.get("peak_confirmation_count", 0)
+    if event is None or not isinstance(event, dict) or not event:
+        return _build_insufficient_data_risk()
 
-    min_ttc = event.get("minimum_ttc_seconds")
-    min_norm_dist = event.get("minimum_normalized_distance")
-    peak_iou = event.get("peak_bbox_iou", 0.0) or 0.0
-    signals = event.get("post_impact_signals", [])
+    if "minimum_distance_px" not in event or event.get("minimum_distance_px") is None:
+        return _build_insufficient_data_risk(event)
 
-    has_post_impact = bool(signals)
-    contact_overlap = peak_iou >= 0.05
-    imminent_ttc = min_ttc is not None and min_ttc < 1.5
+    raw_dist = event.get("minimum_distance_px")
+    raw_closing = event.get("peak_closing_speed_px_per_second", 0.0)
 
-    # Multi-class severity derivation
-    severity = classify_severity(event)
+    # 1. Input validation in the style of assess_risk:
+    # Reject booleans (isinstance(True, int) is True in Python)
+    if isinstance(raw_dist, bool) or isinstance(raw_closing, bool):
+        raise ValueError("Distance and closing speed must be numeric, not boolean.")
 
-    # Physics-grounded threat classification
-    if severity["category"] == "COLLISION" or (contact_overlap or has_post_impact) and min_dist <= 30.0:
-        base_speed = 95.0
-        collision = True
-    elif severity["category"] == "STOPPED_VEHICLE":
-        base_speed = 80.0
-        collision = False
-    elif conf_count >= 3 and min_dist <= 15.0 and closing_speed >= 25.0:
-        base_speed = 90.0
-        collision = True
-    elif imminent_ttc or (min_norm_dist is not None and min_norm_dist < 1.0):
-        base_speed = 75.0
-        collision = False
-    elif conf_count >= 3 and (min_dist <= 25.0 or closing_speed >= 25.0):
-        base_speed = 75.0
-        collision = False
-    elif det_count >= 2:
-        base_speed = 60.0
-        collision = False
+    try:
+        dist = float(raw_dist)
+        closing = float(raw_closing) if raw_closing is not None else 0.0
+    except (TypeError, ValueError):
+        raise ValueError("Distance and closing speed must be numeric.")
+
+    if not math.isfinite(dist) or not math.isfinite(closing):
+        raise ValueError("Distance and closing speed must be finite.")
+
+    if dist < 0 or closing < 0:
+        raise ValueError("Distance and closing speed cannot be negative.")
+
+    det_count = int(event.get("detection_count") or 0)
+    conf_count = int(event.get("peak_confirmation_count") or 0)
+
+    # 2. Monotonic composite image-space scoring
+    # Distance component (0-50 pts): smaller distance -> higher score
+    if dist <= 12.0:
+        s_dist = 50.0
+    elif dist >= 100.0:
+        s_dist = 0.0
     else:
-        base_speed = 45.0
-        collision = False
+        s_dist = 50.0 * (1.0 - (dist - 12.0) / (100.0 - 12.0))
 
-    result = assess_risk(
-        speed_kmh=base_speed,
-        speed_limit_kmh=50.0,
-        suspected_collision=collision,
-        minimum_distance_px=min_dist if math.isfinite(min_dist) else None,
-        closing_speed_px_per_second=closing_speed,
+    # Closing speed component (0-35 pts): higher speed -> higher score
+    if closing >= 50.0:
+        s_speed = 35.0
+    elif closing <= 0.0:
+        s_speed = 0.0
+    else:
+        s_speed = 35.0 * (closing / 50.0)
+
+    # Persistence & confirmation component (0-15 pts)
+    if det_count >= 5 and conf_count >= 4:
+        s_conf = 15.0
+    elif det_count >= 3 and conf_count >= 3:
+        s_conf = 12.0
+    elif det_count >= 2 or conf_count >= 2:
+        s_conf = 8.0
+    elif det_count >= 1 or conf_count >= 1:
+        s_conf = 4.0
+    else:
+        s_conf = 0.0
+
+    raw_score = s_dist + s_speed + s_conf
+
+    # Multi-class severity classification derivation
+    severity = classify_severity(event)
+    if severity.get("category") == "COLLISION":
+        raw_score = max(raw_score, 88.0)
+
+    score = int(min(100, max(0, round(raw_score))))
+
+    # Threat level mapping from 0-100 score
+    if score >= 85:
+        level = "CRITICAL"
+    elif score >= 65:
+        level = "VERY HIGH"
+    elif score >= 45:
+        level = "HIGH"
+    elif score >= 25:
+        level = "ELEVATED"
+    else:
+        level = "LOW"
+
+    status = f"{level}_IMAGE_SPACE_INTERACTION"
+
+    # 3. Factor status derivation & transparent threshold comparison
+    crit_dist = IMAGE_SPACE_RISK_THRESHOLDS["distance_critical_px"]
+    mod_dist = IMAGE_SPACE_RISK_THRESHOLDS["distance_moderate_px"]
+    crit_speed = IMAGE_SPACE_RISK_THRESHOLDS["closing_speed_critical_px_s"]
+    mod_speed = IMAGE_SPACE_RISK_THRESHOLDS["closing_speed_moderate_px_s"]
+    crit_conf = IMAGE_SPACE_RISK_THRESHOLDS["confirmation_count_critical"]
+
+    # Factor: Close proximity
+    if dist <= crit_dist:
+        proximity_status = "detected"
+        proximity_badge = "🔴 DETECTED"
+    elif dist <= mod_dist:
+        proximity_status = "moderate"
+        proximity_badge = "🟡 MODERATE"
+    else:
+        proximity_status = "clear"
+        proximity_badge = "🟢 CLEAR"
+    proximity_detail = (
+        f"Measured separation: {dist:.2f} px (threshold: <= {crit_dist:.1f} px for detected, "
+        f"<= {mod_dist:.1f} px for moderate)."
     )
-    result["severity"] = severity
-    return result
+
+    # Factor: Rapid approach
+    if closing >= crit_speed:
+        approach_status = "detected"
+        approach_badge = "🔴 DETECTED"
+    elif closing >= mod_speed:
+        approach_status = "moderate"
+        approach_badge = "🟡 MODERATE"
+    else:
+        approach_status = "nominal"
+        approach_badge = "🟢 NOMINAL"
+    approach_detail = (
+        f"Measured closing speed: {closing:.2f} px/s (threshold: >= {crit_speed:.1f} px/s for detected, "
+        f">= {mod_speed:.1f} px/s for moderate)."
+    )
+
+    # Factor: Potential path conflict
+    if dist <= crit_dist and closing >= mod_speed:
+        conflict_status = "detected"
+        conflict_badge = "🔴 DETECTED"
+        conflict_detail = (
+            f"Converging trajectory dynamics: measured distance {dist:.2f} px (threshold <= {crit_dist:.1f} px) "
+            f"with closing rate {closing:.2f} px/s (threshold >= {mod_speed:.1f} px/s)."
+        )
+    elif dist <= mod_dist or closing >= mod_speed:
+        conflict_status = "possible"
+        conflict_badge = "🟡 POSSIBLE"
+        conflict_detail = (
+            f"Intersecting approach vectors: measured distance {dist:.2f} px (threshold <= {mod_dist:.1f} px), "
+            f"closing rate {closing:.2f} px/s (threshold >= {mod_speed:.1f} px/s)."
+        )
+    else:
+        conflict_status = "clear"
+        conflict_badge = "🟢 CLEAR"
+        conflict_detail = (
+            f"Nominal separation dynamics: measured distance {dist:.2f} px and closing rate {closing:.2f} px/s "
+            f"within safe baselines."
+        )
+
+    # Factor: Collision confirmation
+    peak_iou = event.get("peak_bbox_iou") or 0.0
+    signals = event.get("post_impact_signals") or []
+    has_contact = (peak_iou >= 0.05) or bool(signals) or (conf_count >= 3 and dist <= 15.0 and closing >= 25.0)
+    if has_contact:
+        confirmation_status = "detected"
+        confirmation_badge = "🔴 DETECTED"
+        confirmation_detail = (
+            f"Multi-frame confirmation detected: {conf_count} confirmed frames with measured separation {dist:.2f} px "
+            f"(threshold <= {crit_dist:.1f} px)."
+        )
+    else:
+        confirmation_status = "not indicated"
+        confirmation_badge = "🟢 NOT INDICATED"
+        confirmation_detail = (
+            f"Multi-frame confirmation: {conf_count} frames recorded "
+            f"(threshold: >= {crit_conf} frames for critical persistence)."
+        )
+
+    # 4. Structured factor cards
+    factor_breakdown = [
+        {
+            "factor": "Potential path conflict",
+            "status": conflict_status,
+            "display_status": conflict_status.capitalize(),
+            "detail": conflict_detail,
+            "badge": conflict_badge,
+            "measured_value": f"{dist:.2f} px, {closing:.2f} px/s",
+            "threshold": f"<={crit_dist:.1f} px, >={mod_speed:.1f} px/s",
+        },
+        {
+            "factor": "Close proximity",
+            "status": proximity_status,
+            "display_status": proximity_status.capitalize(),
+            "detail": proximity_detail,
+            "badge": proximity_badge,
+            "measured_value": f"{dist:.2f} px",
+            "threshold": f"<={crit_dist:.1f} px",
+        },
+        {
+            "factor": "Rapid approach",
+            "status": approach_status,
+            "display_status": approach_status.capitalize(),
+            "detail": approach_detail,
+            "badge": approach_badge,
+            "measured_value": f"{closing:.2f} px/s",
+            "threshold": f">={crit_speed:.1f} px/s",
+        },
+        {
+            "factor": "Collision confirmation",
+            "status": confirmation_status,
+            "display_status": confirmation_status.capitalize(),
+            "detail": confirmation_detail,
+            "badge": confirmation_badge,
+            "measured_value": f"{conf_count} frames",
+            "threshold": f">={crit_conf} frames",
+        },
+    ]
+
+    reasons = [
+        f"Image-space kinematic threat assessed at {level} ({score}/100).",
+        f"Potential path conflict: {conflict_status}.",
+        f"Close proximity: {proximity_status}.",
+        f"Rapid approach: {approach_status}.",
+        f"Collision confirmation: {confirmation_status}.",
+    ]
+
+    explainability_summary = (
+        f"Threat score {score}/100 ({level}) derived from image-space pixel kinematics: "
+        f"measured separation {dist:.2f} px vs {crit_dist:.1f} px threshold, "
+        f"closing speed {closing:.2f} px/s vs {crit_speed:.1f} px/s threshold, "
+        f"and {conf_count} persistent confirmation frames."
+    )
+
+    return {
+        "threat_score": score,
+        "threat_level": level,
+        "event_status": status,
+        "severity": severity,
+        "speed_kmh": None,
+        "speed_limit_kmh": None,
+        "overspeed_ratio": None,
+        "speed_source": "IMAGE_SPACE_VIDEO_EVENT",
+        "reasons": reasons,
+        "factor_breakdown": factor_breakdown,
+        "explainability_summary": explainability_summary,
+        "thresholds_used": dict(IMAGE_SPACE_RISK_THRESHOLDS),
+    }

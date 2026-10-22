@@ -10,7 +10,7 @@
 [![YOLO11](https://img.shields.io/badge/Vision-Ultralytics%20YOLO11n-00FFFF.svg)](https://github.com/ultralytics/ultralytics)
 [![ByteTrack](https://img.shields.io/badge/Tracking-ByteTrack%20%7C%20BoT--SORT-brightgreen.svg)](https://github.com/ifzhang/ByteTrack)
 [![ReportLab](https://img.shields.io/badge/Reports-ReportLab%20PDF-red.svg)](https://www.reportlab.com/)
-[![Tests](https://img.shields.io/badge/Tests-57%20Passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-72%20Passing-success.svg)](tests/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-orange.svg)](LICENSE)
 
 ---
@@ -197,10 +197,10 @@ pip install -r requirements.txt
 python download_weights.py
 ```
 
-*(Optional)* Configure external notification credentials:
+*(Optional)* Configure external notification & gateway credentials:
 ```bash
 cp .env.example .env
-# Edit .env with your Telegram bot token or Twilio credentials if desired
+# Edit .env with your Telegram bot token, Twilio credentials, or Prune API key if desired
 ```
 *Note: If no credentials are provided, MotionGuard operates securely in local carrier simulator mode.*
 
@@ -260,7 +260,7 @@ Follow this 2-minute walkthrough to experience MotionGuard's complete end-to-end
 
 ### 4. Running Automated Tests
 
-Run the full automated test suite (57 unit & integration tests across vision, kinematics, zones, clips & benchmarks):
+Run the full automated test suite (72 unit & integration tests across vision, kinematics, zones, clips & benchmarks):
 
 ```bash
 # Windows 1-Click
@@ -272,6 +272,30 @@ run_tests.bat
 # Or via pytest directly
 pytest -v
 ```
+
+---
+
+### 5. Prune AI Gateway Verification
+
+MotionGuard supports routing LLM calls through the [Prune](https://www.withprune.com) AI Gateway:
+
+1. Obtain a `PRUNE_API_KEY` (starts with `prune_`) from [app.withprune.com](https://app.withprune.com) under **Connect > API Keys** and configure your provider in **Connect > Providers**.
+2. Export the key into your environment:
+   ```bash
+   # Windows PowerShell
+   $env:PRUNE_API_KEY="prune_..."
+
+   # Windows Command Prompt
+   set PRUNE_API_KEY=prune_...
+
+   # Linux / macOS
+   export PRUNE_API_KEY="prune_..."
+   ```
+3. Run the gateway connectivity and cache verification script:
+   ```bash
+   python scripts/verify_prune.py
+   ```
+   This validates an initial request (HTTP 200, `prune_metadata`, `X-Prune-Provider`) and verifies cache replay (`X-Prune-Cache-Hit: true`).
 
 ---
 
@@ -306,8 +330,8 @@ MotionGuard/
 ├── Dockerfile                  # Production container definition (Python 3.11 + FFmpeg)
 ├── download_weights.py         # Autonomous YOLO11n weight download verification
 ├── LICENSE                     # AGPL-3.0 License file
-├── .env.example                # Template for Telegram / Twilio API keys & OPERATOR_PIN
-├── scripts/                    # Utility, track inspection, and diagnostic scripts
+├── .env.example                # Template for Telegram / Twilio / Prune API keys & OPERATOR_PIN
+├── scripts/                    # Diagnostics, verification (verify_prune.py), and track utilities
 ├── docs/                       # Project documentation & presentation dossier
 ├── data/
 │   ├── videos/
@@ -337,8 +361,11 @@ MotionGuard/
 │   ├── event_aggregation.py    # Temporal episode clustering & deduplication
 │   ├── risk_engine.py          # Explainable multi-tier threat scoring
 │   ├── reporting.py            # Incident persistence & lifecycle audit logs
+│   ├── prune_gateway.py        # Prune AI Gateway proxy & incident triage summary generator
 │   └── pdf_report.py           # Investigation-support dossier PDF export
 ├── tests/
+│   ├── test_round2_event_risk.py      # Multi-factor event risk & candidate evaluation tests
+│   ├── test_prune_gateway.py          # Prune gateway & candidate pruning tests
 │   ├── test_zones.py                  # Geofencing zone containment & threshold modulation tests
 │   ├── test_confusion_matrix.py       # Real-time calibration & confusion matrix evaluation tests
 │   ├── test_severity_classification.py# Multi-class collision vs. near-miss triage tests

@@ -177,11 +177,12 @@ def run_automated_incident_pipeline(
         dispatch_res = None
         should_dispatch = auto_dispatch and is_emergency_dispatch_eligible(event)
         if should_dispatch:
+            candidate_label = f"INCIDENT CANDIDATE [{risk_result['threat_level']}] - HUMAN REVIEW REQUIRED"
             sms_text = format_emergency_sms(
                 event,
                 camera_name=camera_name,
                 camera_id="CAM-01",
-                incident_type="CRITICAL VEHICLE ACCIDENT / COLLISION DETECTED",
+                incident_type=candidate_label,
                 incident_id=report["incident_id"],
                 threat_level=risk_result["threat_level"],
                 threat_score=risk_result["threat_score"],
