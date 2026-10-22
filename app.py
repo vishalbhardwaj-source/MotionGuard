@@ -192,16 +192,13 @@ def get_event_evidence_image(event, active_video=None, trajectory_records=None):
     if ts is None:
         ts = event.get("minimum_distance_timestamp_seconds", event.get("start_seconds", 0.0))
     ts_key = int(round(float(ts) * 100))
-    target_evidence_path = EVIDENCE_DIR / f"{event_id}_ts{ts_key}_evidence.jpg"
 
-    if target_evidence_path.is_file():
-        return str(target_evidence_path)
-
-    # Determine video source
+    # Determine active video source
     video_to_use = None
     candidates = [
         active_video,
         st.session_state.get("uploaded_video_path"),
+        st.session_state.get("active_sample_video"),
         st.session_state.get("processed_video"),
     ]
     for cand in candidates:
@@ -209,26 +206,34 @@ def get_event_evidence_image(event, active_video=None, trajectory_records=None):
             video_to_use = str(cand)
             break
 
-    records = trajectory_records or st.session_state.get("trajectory_records")
-    if not records:
-        for traj_candidate in [
-            OUTPUT_DIR / "uploaded_trajectories.jsonl",
-            OUTPUT_DIR / "trajectories_trails_test.jsonl",
-        ]:
-            if traj_candidate.is_file():
-                try:
-                    loaded = []
-                    with traj_candidate.open("r", encoding="utf-8") as f:
-                        for line in f:
-                            if line.strip():
-                                loaded.append(json.loads(line))
-                    if loaded:
-                        records = loaded
-                        break
-                except Exception:
-                    pass
+    # Scoped target path based on active video stem to avoid cross-video cache collisions
+    video_prefix = Path(video_to_use).stem if video_to_use else "feed"
+    target_evidence_path = EVIDENCE_DIR / f"{video_prefix}_{event_id}_ts{ts_key}_evidence.jpg"
 
+    if target_evidence_path.is_file():
+        return str(target_evidence_path)
+
+    # Dynamic extraction from active video
     if video_to_use:
+        records = trajectory_records or st.session_state.get("trajectory_records")
+        if not records:
+            for traj_candidate in [
+                OUTPUT_DIR / "uploaded_trajectories.jsonl",
+                OUTPUT_DIR / "trajectories_trails_test.jsonl",
+            ]:
+                if traj_candidate.is_file():
+                    try:
+                        loaded = []
+                        with traj_candidate.open("r", encoding="utf-8") as f:
+                            for line in f:
+                                if line.strip():
+                                    loaded.append(json.loads(line))
+                        if loaded:
+                            records = loaded
+                            break
+                    except Exception:
+                        pass
+
         try:
             generated = extract_and_annotate_event_evidence(
                 video_path=video_to_use,
@@ -997,7 +1002,8 @@ with interaction_tab:
                 if event.get("zone_context"):
                     st.caption(f"📍 **Spatial Geofencing:** {event.get('zone_context')} · Sensitivity Multiplier: {event.get('zone_multiplier', 1.0):.2f}x")
 
-                evidence_img = get_event_evidence_image(event)
+                active_current_vid = st.session_state.get("uploaded_video_path") or st.session_state.get("active_sample_video")
+                evidence_img = get_event_evidence_image(event, active_video=active_current_vid, trajectory_records=st.session_state.get("trajectory_records"))
 
                 if evidence_img and Path(evidence_img).exists():
                     try:
@@ -1493,6 +1499,7 @@ with video_tab:
         if st.button("🚨 Quick-Load Highway Crash Demo (crash_demo.mp4)", use_container_width=True, help="Load certified 5.5s collision demo footage from data/videos/"):
             sample_crash = Path("data/videos/crash_demo.mp4")
             if sample_crash.is_file():
+                st.session_state["video_source"] = "sample"
                 st.session_state["active_sample_video"] = str(sample_crash)
                 st.session_state["active_uploaded_name"] = "crash_demo.mp4"
                 st.session_state["uploaded_video_path"] = str(sample_crash)
@@ -1509,6 +1516,7 @@ with video_tab:
         if st.button("🛣️ Quick-Load Normal Flow Baseline (normal.mp4)", use_container_width=True, help="Load normal flowing traffic baseline from data/videos/"):
             sample_normal = Path("data/videos/normal.mp4")
             if sample_normal.is_file():
+                st.session_state["video_source"] = "sample"
                 st.session_state["active_sample_video"] = str(sample_normal)
                 st.session_state["active_uploaded_name"] = "normal.mp4"
                 st.session_state["uploaded_video_path"] = str(sample_normal)
@@ -1528,27 +1536,37 @@ with video_tab:
         help="Upload any surveillance clip. Video processing, tracking, and logs will ONLY be created for active video.",
     )
 
+    # Detect if user actively uploaded a new file into the uploader
+    if uploaded_video is not None and uploaded_video.name != st.session_state.get("last_uploaded_name"):
+        input_path = OUTPUT_DIR / f"uploaded_{uploaded_video.name}"
+        input_path.parent.mkdir(parents=True, exist_ok=True)
+        input_path.write_bytes(uploaded_video.getvalue())
+        st.session_state["last_uploaded_name"] = uploaded_video.name
+        st.session_state["video_source"] = "uploaded"
+        st.session_state["active_uploaded_name"] = uploaded_video.name
+        st.session_state["uploaded_video_path"] = str(input_path)
+        st.session_state.pop("active_sample_video", None)
+        st.session_state.pop("latest_pipeline_run", None)
+        st.session_state.pop("processed_video", None)
+        st.session_state.pop("tracking_result", None)
+        st.session_state.pop("interaction_events", None)
+        st.session_state.pop("trajectory_records", None)
+        st.session_state.pop("trajectory_summary", None)
+
     active_feed_path = None
     active_feed_name = None
 
-    if uploaded_video is not None:
-        input_path = OUTPUT_DIR / "current_uploaded_video.mp4"
-        input_path.parent.mkdir(parents=True, exist_ok=True)
-        if st.session_state.get("active_uploaded_name") != uploaded_video.name:
-            input_path.write_bytes(uploaded_video.getvalue())
-            st.session_state["active_uploaded_name"] = uploaded_video.name
-            st.session_state["uploaded_video_path"] = str(input_path)
-            st.session_state.pop("active_sample_video", None)
-            st.session_state.pop("latest_pipeline_run", None)
-            st.session_state.pop("processed_video", None)
-            st.session_state.pop("tracking_result", None)
-            st.session_state.pop("interaction_events", None)
-            st.session_state.pop("trajectory_records", None)
-            st.session_state.pop("trajectory_summary", None)
+    if st.session_state.get("video_source") == "uploaded" and st.session_state.get("uploaded_video_path"):
+        active_feed_path = Path(st.session_state["uploaded_video_path"])
+        active_feed_name = st.session_state.get("active_uploaded_name", active_feed_path.name)
+    elif st.session_state.get("video_source") == "sample" and st.session_state.get("active_sample_video"):
+        active_feed_path = Path(st.session_state["active_sample_video"])
+        active_feed_name = st.session_state.get("active_uploaded_name", active_feed_path.name)
+    elif uploaded_video is not None and st.session_state.get("uploaded_video_path"):
         active_feed_path = Path(st.session_state["uploaded_video_path"])
         active_feed_name = uploaded_video.name
-    elif st.session_state.get("active_sample_video") and Path(st.session_state["active_sample_video"]).is_file():
-        active_feed_path = Path(st.session_state["active_sample_video"])
+    elif st.session_state.get("uploaded_video_path") and Path(st.session_state["uploaded_video_path"]).is_file():
+        active_feed_path = Path(st.session_state["uploaded_video_path"])
         active_feed_name = st.session_state.get("active_uploaded_name", active_feed_path.name)
 
     if active_feed_path is None:
@@ -2183,7 +2201,8 @@ with dossier_tab:
         }
 
 
-        evidence_img_path = get_event_evidence_image(selected_event)
+        active_current_vid = st.session_state.get("uploaded_video_path") or st.session_state.get("active_sample_video")
+        evidence_img_path = get_event_evidence_image(selected_event, active_video=active_current_vid, trajectory_records=st.session_state.get("trajectory_records"))
         pdf_evidence_path = evidence_img_path
 
         try:
