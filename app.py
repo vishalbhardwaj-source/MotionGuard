@@ -787,28 +787,38 @@ st.markdown(
 pipeline_run = st.session_state.get("latest_pipeline_run")
 if pipeline_run and pipeline_run.get("incidents_created"):
     first_inc = pipeline_run["incidents_created"][0]
-    channel_name = first_inc.get("dispatch_result", {}).get("channel", "TELEGRAM_ALERT")
-    recipient_name = first_inc.get("dispatch_result", {}).get("recipient", "Concerned Authorities")
-    msg_id = first_inc.get("dispatch_result", {}).get("message_id", "N/A")
+    disp = first_inc.get("dispatch_result") or {}
+    has_dispatch = bool(disp and disp.get("success", False))
+    channel_name = disp.get("channel", "TELEGRAM_ALERT")
+    recipient_name = disp.get("recipient", "Concerned Authorities")
+    msg_id = disp.get("message_id", "N/A")
+    badge_title = "🚨 AUTONOMOUS ACCIDENT ESCALATION DISPATCHED!" if has_dispatch else "⚠️ HIGH-RISK INCIDENT FLAGGED FOR OPERATOR TRIAGE"
+    badge_tag = "LIVE ALERT SENT" if has_dispatch else "TRIAGE LOGGED"
+    badge_color = "#ef4444" if has_dispatch else "#f59e0b"
+    dispatch_desc = (
+        f"Delivered to <b>{recipient_name}</b> via <b>{channel_name}</b> (Message ID: <code>{msg_id}</code>)"
+        if has_dispatch
+        else "Retained in triage queue for operator triage &nbsp;|&nbsp; Official Forensic PDF Dossier compiled."
+    )
     st.markdown(
         f"""
         <div style="
             background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(15, 23, 42, 0.95));
-            border: 2px solid #ef4444;
+            border: 2px solid {badge_color};
             border-radius: 10px;
             padding: 14px 20px;
             margin-bottom: 16px;
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 1.05rem; font-weight: 700; color: #f87171;">🚨 AUTONOMOUS ACCIDENT ESCALATION DISPATCHED!</span>
-                <span style="background: #ef4444; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem;">
-                    LIVE ALERT SENT
+                <span style="font-size: 1.05rem; font-weight: 700; color: #f87171;">{badge_title}</span>
+                <span style="background: {badge_color}; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem;">
+                    {badge_tag}
                 </span>
             </div>
             <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.4;">
-                <b>Incident ID:</b> <code>{first_inc['incident_id']}</code> (Event <code>{first_inc['event_id']}</code>) &nbsp;|&nbsp;
-                <b>Threat Level:</b> <span style="color: #f87171; font-weight: bold;">{first_inc['threat_level']} ({first_inc['threat_score']}/100)</span> &nbsp;|&nbsp;
-                <b>Emergency Dispatch:</b> Delivered to <b>{recipient_name}</b> via <b>{channel_name}</b> (Message ID: <code>{msg_id}</code>)<br/>
+                <b>Incident ID:</b> <code>{first_inc.get('incident_id', 'N/A')}</code> (Event <code>{first_inc.get('event_id', 'N/A')}</code>) &nbsp;|&nbsp;
+                <b>Threat Level:</b> <span style="color: #f87171; font-weight: bold;">{first_inc.get('threat_level', 'UNKNOWN')} ({first_inc.get('threat_score', 0)}/100)</span> &nbsp;|&nbsp;
+                <b>Emergency Dispatch:</b> {dispatch_desc}<br/>
                 <b>Investigation Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Investigation-Support PDF Dossier compiled.
             </div>
         </div>

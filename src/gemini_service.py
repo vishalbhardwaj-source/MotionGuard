@@ -54,14 +54,8 @@ load_env_file()
 
 
 def get_gemini_api_key() -> str:
-    """Retrieve Gemini API key from environment."""
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not key:
-        # Check if stored under PRUNE_API_KEY
-        prune_key = os.environ.get("PRUNE_API_KEY", "").strip()
-        if prune_key.startswith("AQ.") or prune_key.startswith("AIzaSy"):
-            key = prune_key
-    return key
+    """Retrieve Gemini API key strictly from GEMINI_API_KEY environment variable."""
+    return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
 def test_gemini_connection(api_key: Optional[str] = None) -> Dict[str, Any]:
@@ -78,7 +72,7 @@ def test_gemini_connection(api_key: Optional[str] = None) -> Dict[str, Any]:
         }
 
     for model in [PRIMARY_MODEL] + FALLBACK_MODELS:
-        url = f"{GEMINI_BASE_URL}/models/{model}:generateContent?key={key}"
+        url = f"{GEMINI_BASE_URL}/models/{model}:generateContent"
         payload = {
             "contents": [
                 {
@@ -91,7 +85,10 @@ def test_gemini_connection(api_key: Optional[str] = None) -> Dict[str, Any]:
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": key,
+                },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=8.0) as resp:
@@ -232,7 +229,7 @@ def generate_gemini_triage_analysis(
     candidate_models = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
 
     for model in candidate_models:
-        url = f"{GEMINI_BASE_URL}/models/{model}:generateContent?key={key}"
+        url = f"{GEMINI_BASE_URL}/models/{model}:generateContent"
         payload = {
             "contents": [{"parts": parts}],
             "generationConfig": {
@@ -245,7 +242,10 @@ def generate_gemini_triage_analysis(
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": key,
+                },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=12.0) as resp:

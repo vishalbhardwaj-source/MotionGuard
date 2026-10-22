@@ -75,6 +75,8 @@ def test_assess_event_risk_with_severity():
         "peak_bbox_iou": 0.08,
         "minimum_distance_px": 5.0,
         "peak_closing_speed_px_per_second": 45.0,
+        "detection_count": 5,
+        "peak_confirmation_count": 4,
     }
     risk = assess_event_risk(event)
     assert "severity" in risk

@@ -33,6 +33,23 @@ def test_create_incident_report(tmp_path, monkeypatch):
     assert "incident_id" in report
 
 
+def test_create_interaction_pdf_includes_thresholds_and_measured_values(tmp_path):
+    from src.pdf_report import create_interaction_pdf
+    event = {
+        "event_id": "PI-0004",
+        "evidence_timestamp_seconds": 6.61,
+        "track_ids": [35, 83],
+        "minimum_distance_px": 10.12,
+        "peak_closing_speed_px_per_second": 54.68,
+        "detection_count": 5,
+        "peak_confirmation_count": 4,
+    }
+    pdf_bytes = create_interaction_pdf(event)
+    assert isinstance(pdf_bytes, bytes)
+    assert len(pdf_bytes) > 1000
+    assert pdf_bytes.startswith(b"%PDF")
+
+
 if __name__ == "__main__":
     import tempfile
     with tempfile.TemporaryDirectory() as td:

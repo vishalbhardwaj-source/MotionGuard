@@ -376,39 +376,36 @@ def assess_risk(
 # Round 2: Centralized Image-Space Risk Scorer Configuration
 # ==============================================================================
 IMAGE_SPACE_RISK_THRESHOLDS = {
-    # Distance thresholds (pixels) - smaller distance means closer proximity / higher threat
+    # Continuous scoring bands (pixels and px/s)
+    "distance_band_min_px": 12.0,      # Distance at or below which maximum distance points are awarded
+    "distance_band_max_px": 100.0,     # Distance at or above which 0 distance points are awarded
+    "speed_band_max_px_s": 50.0,       # Closing speed at or above which maximum speed points are awarded
+
+    # Scoring weights (sum to 100.0)
+    "weight_distance": 50.0,           # Max points for close proximity
+    "weight_closing_speed": 35.0,      # Max points for rapid approach
+    "weight_persistence": 15.0,        # Max points for multi-frame persistence
+
+    # Persistence & confirmation point tiers
+    "persistence_tier_critical_pts": 15.0,
+    "persistence_tier_high_pts": 12.0,
+    "persistence_tier_medium_pts": 8.0,
+    "persistence_tier_low_pts": 4.0,
+
+    # Threat level score cutoffs
+    "cutoff_critical": 85,
+    "cutoff_very_high": 65,
+    "cutoff_high": 45,
+    "cutoff_elevated": 25,
+
+    # Factor card thresholds (for qualitative explainability badges)
     "distance_critical_px": 15.0,
     "distance_moderate_px": 45.0,
-    "distance_nominal_px": 80.0,
-
-    # Closing speed thresholds (px/s) - higher speed means rapid approach / higher threat
     "closing_speed_critical_px_s": 30.0,
     "closing_speed_moderate_px_s": 15.0,
-    "closing_speed_nominal_px_s": 5.0,
-
-    # Persistence and confirmation frame thresholds
-    "detection_count_confirmed": 3,
     "confirmation_count_critical": 4,
 }
 EVENT_RISK_THRESHOLDS = IMAGE_SPACE_RISK_THRESHOLDS
-
-
-def prune_nominal_interactions(events, min_threat_score=25.0):
-    """
-    Intelligent candidate event pruning.
-    Prunes low-threat background jitter and nominal passing events from the candidate queue.
-    """
-    if not events:
-        return []
-    pruned = []
-    for ev in events:
-        try:
-            risk = assess_event_risk(ev)
-            if risk.get("threat_score", 0) >= min_threat_score:
-                pruned.append(ev)
-        except Exception:
-            pruned.append(ev)
-    return pruned
 
 
 def _build_insufficient_data_risk(event=None):
@@ -492,9 +489,11 @@ def assess_event_risk(event):
     raw_closing = event.get("peak_closing_speed_px_per_second", 0.0)
 
     # 1. Input validation in the style of assess_risk:
-    # Reject booleans (isinstance(True, int) is True in Python)
-    if isinstance(raw_dist, bool) or isinstance(raw_closing, bool):
-        raise ValueError("Distance and closing speed must be numeric, not boolean.")
+    # Reject strings (e.g. "12") and booleans (isinstance(True, int) is True in Python)
+    if isinstance(raw_dist, (str, bool)):
+        raise ValueError("Distance must be numeric, not string or boolean.")
+    if isinstance(raw_closing, (str, bool)):
+        raise ValueError("Closing speed must be numeric, not string or boolean.")
 
     try:
         dist = float(raw_dist)
@@ -511,52 +510,70 @@ def assess_event_risk(event):
     det_count = int(event.get("detection_count") or 0)
     conf_count = int(event.get("peak_confirmation_count") or 0)
 
-    # 2. Monotonic composite image-space scoring
-    # Distance component (0-50 pts): smaller distance -> higher score
-    if dist <= 12.0:
-        s_dist = 50.0
-    elif dist >= 100.0:
+    # 2. Monotonic composite image-space scoring derived strictly from constants
+    d_min = IMAGE_SPACE_RISK_THRESHOLDS["distance_band_min_px"]
+    d_max = IMAGE_SPACE_RISK_THRESHOLDS["distance_band_max_px"]
+    w_dist = IMAGE_SPACE_RISK_THRESHOLDS["weight_distance"]
+    w_speed = IMAGE_SPACE_RISK_THRESHOLDS["weight_closing_speed"]
+    s_max = IMAGE_SPACE_RISK_THRESHOLDS["speed_band_max_px_s"]
+
+    # Distance component (0 to w_dist pts): smaller distance -> higher score
+    if dist <= d_min:
+        s_dist = w_dist
+    elif dist >= d_max:
         s_dist = 0.0
     else:
-        s_dist = 50.0 * (1.0 - (dist - 12.0) / (100.0 - 12.0))
+        s_dist = w_dist * (1.0 - (dist - d_min) / (d_max - d_min))
 
-    # Closing speed component (0-35 pts): higher speed -> higher score
-    if closing >= 50.0:
-        s_speed = 35.0
+    # Closing speed component (0 to w_speed pts): higher speed -> higher score
+    if closing >= s_max:
+        s_speed = w_speed
     elif closing <= 0.0:
         s_speed = 0.0
     else:
-        s_speed = 35.0 * (closing / 50.0)
+        s_speed = w_speed * (closing / s_max)
 
-    # Persistence & confirmation component (0-15 pts)
+    # Persistence & confirmation component (0 to weight_persistence pts)
+    p_crit = IMAGE_SPACE_RISK_THRESHOLDS["persistence_tier_critical_pts"]
+    p_high = IMAGE_SPACE_RISK_THRESHOLDS["persistence_tier_high_pts"]
+    p_med = IMAGE_SPACE_RISK_THRESHOLDS["persistence_tier_medium_pts"]
+    p_low = IMAGE_SPACE_RISK_THRESHOLDS["persistence_tier_low_pts"]
+
     if det_count >= 5 and conf_count >= 4:
-        s_conf = 15.0
+        s_conf = p_crit
     elif det_count >= 3 and conf_count >= 3:
-        s_conf = 12.0
+        s_conf = p_high
     elif det_count >= 2 or conf_count >= 2:
-        s_conf = 8.0
+        s_conf = p_med
     elif det_count >= 1 or conf_count >= 1:
-        s_conf = 4.0
+        s_conf = p_low
     else:
         s_conf = 0.0
 
     raw_score = s_dist + s_speed + s_conf
 
-    # Multi-class severity classification derivation
-    severity = classify_severity(event)
-    if severity.get("category") == "COLLISION":
-        raw_score = max(raw_score, 88.0)
-
+    # Score comes strictly from pixel metrics — no artificial score floor!
     score = int(min(100, max(0, round(raw_score))))
 
-    # Threat level mapping from 0-100 score
-    if score >= 85:
+    # Multi-class severity classification derivation (for taxonomy only, sanitized against strings)
+    sanitized_event = dict(event)
+    sanitized_event["minimum_distance_px"] = dist
+    sanitized_event["peak_closing_speed_px_per_second"] = closing
+    severity = classify_severity(sanitized_event)
+
+    # Threat level mapping derived from centralized cutoffs
+    cut_crit = IMAGE_SPACE_RISK_THRESHOLDS["cutoff_critical"]
+    cut_vh = IMAGE_SPACE_RISK_THRESHOLDS["cutoff_very_high"]
+    cut_high = IMAGE_SPACE_RISK_THRESHOLDS["cutoff_high"]
+    cut_elev = IMAGE_SPACE_RISK_THRESHOLDS["cutoff_elevated"]
+
+    if score >= cut_crit:
         level = "CRITICAL"
-    elif score >= 65:
+    elif score >= cut_vh:
         level = "VERY HIGH"
-    elif score >= 45:
+    elif score >= cut_high:
         level = "HIGH"
-    elif score >= 25:
+    elif score >= cut_elev:
         level = "ELEVATED"
     else:
         level = "LOW"

@@ -199,9 +199,13 @@ def test_failure_bad_values():
     with pytest.raises(ValueError):
         assess_event_risk({"minimum_distance_px": 10.0, "peak_closing_speed_px_per_second": -2.0})
 
-    # Non-numeric string values
+    # Non-numeric and numeric string values (must raise ValueError, not crash or convert)
     with pytest.raises(ValueError):
         assess_event_risk({"minimum_distance_px": "invalid", "peak_closing_speed_px_per_second": 10.0})
+    with pytest.raises(ValueError):
+        assess_event_risk({"minimum_distance_px": "12", "peak_closing_speed_px_per_second": 10.0})
+    with pytest.raises(ValueError):
+        assess_event_risk({"minimum_distance_px": 12.0, "peak_closing_speed_px_per_second": "15.5"})
 
 
 def test_alert_wording_simulator_no_confirmed_collision(tmp_path, monkeypatch):

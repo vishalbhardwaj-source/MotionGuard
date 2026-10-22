@@ -18,9 +18,10 @@ def test_get_gemini_api_key_from_env():
         assert get_gemini_api_key() == "test_gemini_key_123"
 
 
-def test_get_gemini_api_key_fallback_to_prune():
+def test_get_gemini_api_key_no_fallback_to_prune():
+    # Strict separation of provider credentials: PRUNE_API_KEY must not leak or be used for Gemini
     with patch.dict(os.environ, {"GEMINI_API_KEY": "", "PRUNE_API_KEY": "AQ.dummy_key"}):
-        assert get_gemini_api_key() == "AQ.dummy_key"
+        assert get_gemini_api_key() == ""
 
 
 def test_gemini_connection_unconfigured():
