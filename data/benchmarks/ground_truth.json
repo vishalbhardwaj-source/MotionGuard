@@ -7,7 +7,7 @@
     "frame_count": 716,
     "source_type": "HIGHWAY_SAFE_FLOW",
     "source_url": "https://www.pexels.com/video/traffic-on-the-highway-854746/",
-    "license": "Pexels CC0 / Free Public Domain (Commercial & Personal Use, No Attribution Required)",
+    "license": "Pexels License / CC0 Free Public Domain (Free for personal and commercial use with no attribution required)",
     "description": "Baseline multi-lane highway surveillance footage showing continuous traffic flow with lane changes and merges.",
     "crashes": []
   },
@@ -18,16 +18,17 @@
     "fps": 60.0,
     "frame_count": 630,
     "source_type": "HIGHWAY_REAR_END_COLLISION",
-    "source_attribution": "Curated dashcam highway rear-end collision sequence (10.5s demonstration segment)",
-    "license": "Non-commercial educational & research evaluation demonstration clip",
-    "notes": "Proof-of-concept validation clip. Production deployments connect to authorized DOT/RTSP highway surveillance streams.",
-    "description": "Highway two-vehicle rear-end collision sequence with certified physical contact onset at t=5.20s.",
+    "source_attribution": "Excerpt from public highway dashcam compilation ('Realistic Highway Car Crashes #32', segment at t=5.2s)",
+    "license": "Third-party demonstration fixture used under Fair Use (17 U.S.C. § 107) for offline non-commercial educational & algorithmic testing; not covered by AGPL-3.0",
+    "notes": "Proof-of-concept demonstration clip. Production deployments connect to authorized DOT or RTSP highway surveillance feeds.",
+    "description": "Highway two-vehicle rear-end collision sequence annotated by the authors with physical contact onset at t=5.20s.",
     "crashes": [
       {
         "start_s": 5.2,
         "end_s": 6.5,
         "label": "rear-end impact",
-        "severity": "CRITICAL"
+        "severity": "CRITICAL",
+        "annotation_source": "Annotated by the authors"
       }
     ]
   }

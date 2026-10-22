@@ -24,12 +24,16 @@ def is_emergency_dispatch_eligible(event):
     iou = event.get("peak_bbox_iou") or 0.0
     det_count = event.get("detection_count", 0)
     dur = event.get("duration_seconds", 0.0)
+    contact_frames = event.get("contact_frame_count")
     closing = event.get("peak_closing_speed_px_per_second", 0.0)
     post_signals = event.get("post_impact_signals") or []
     min_dist = event.get("minimum_distance_px", float("inf"))
 
-    # Must have physical overlap persisting across multiple frames
-    has_multi_frame_contact = (iou >= 0.05) and (det_count >= 2 or dur > 0.0)
+    # Must have physical overlap persisting across multiple frames (IoU >= 0.05 across >= 2 frames)
+    if contact_frames is not None:
+        has_multi_frame_contact = contact_frames >= 2 and iou >= 0.05
+    else:
+        has_multi_frame_contact = (iou >= 0.05) and (det_count >= 2 and dur > 0.0)
 
     # Must exhibit dynamic impact kinematics (high closing rate or post-impact halt)
     has_kinetic_impact = closing >= 20.0 or ("SUDDEN_DECELERATION" in post_signals and min_dist <= 30.0)

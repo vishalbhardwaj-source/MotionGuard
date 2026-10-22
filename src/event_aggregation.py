@@ -1,4 +1,3 @@
-
 def aggregate_interaction_events(findings, max_gap_seconds=0.5):
     """Group repeated findings for the same pair into event episodes.
 
@@ -65,6 +64,7 @@ def aggregate_interaction_events(findings, max_gap_seconds=0.5):
             min_norm_dist = min(valid_norm_dists) if valid_norm_dists else None
 
             peak_iou = max((item.get("bbox_iou") or 0.0) for item in episode)
+            contact_frame_count = sum(1 for item in episode if (item.get("bbox_iou") or 0.0) >= 0.05)
             all_signals = list({
                 sig
                 for item in episode
@@ -84,21 +84,21 @@ def aggregate_interaction_events(findings, max_gap_seconds=0.5):
                 "detection_count": len({
                     item["timestamp_seconds"] for item in episode
                 }),
+                "contact_frame_count": contact_frame_count,
                 "peak_confirmation_count": max(
                     item.get("consecutive_confirmation_count", 0)
                     for item in episode
                 ),
-
                 "minimum_distance_px": closest["distance_px"],
-		"minimum_distance_timestamp_seconds": (
-    		   closest["timestamp_seconds"]
-		),
-		"peak_closing_speed_px_per_second": (
-   		     fastest["closing_speed_px_per_second"]
-		),
-		"peak_closing_speed_timestamp_seconds": (
-  		     fastest["timestamp_seconds"]
- 		),
+                "minimum_distance_timestamp_seconds": (
+                    closest["timestamp_seconds"]
+                ),
+                "peak_closing_speed_px_per_second": (
+                    fastest["closing_speed_px_per_second"]
+                ),
+                "peak_closing_speed_timestamp_seconds": (
+                    fastest["timestamp_seconds"]
+                ),
                 "evidence_timestamp_seconds": (
                     closest["timestamp_seconds"]
                 ),

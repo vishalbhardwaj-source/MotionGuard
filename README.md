@@ -100,8 +100,8 @@ MotionGuard includes an empirical demonstration evaluation engine ([`src/benchma
 ### 1. Dual-Clip Demonstration Results
 
 We evaluated MotionGuard across two reference clips:
-- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Multi-lane highway traffic baseline showing routine merging maneuvers. Sourced from [Pexels Highway Traffic Archive (Video 854746)](https://www.pexels.com/video/traffic-on-the-highway-854746/) under CC0 / Open Public Domain.
-- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Curated 10.5-second dashcam highway rear-end collision demonstration sequence (non-commercial educational/research demonstration) with physical contact onset certified at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
+- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames at 29.97 fps). Multi-lane highway traffic baseline showing routine merging maneuvers. Sourced from [Pexels Highway Traffic Archive (Video 854746)](https://www.pexels.com/video/traffic-on-the-highway-854746/) under CC0 / Open Public Domain.
+- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames at 60.0 fps). Dashcam highway rear-end collision sequence with physical contact onset annotated by the authors at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
 
 > 💡 **Reproducibility**: Run the evaluation engine dynamically via CLI (using cached or `--live` GPU tracking):
 > ```bash
@@ -112,8 +112,8 @@ We evaluated MotionGuard across two reference clips:
 
 | Benchmark Dimension | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Target Standard |
 | :--- | :---: | :---: | :--- |
-| **Clip Duration** | 23.89s (716 frames) | 10.50s (630 frames) | Reference test clips |
-| **Ground-Truth Collisions** | **0** | **1 (Onset: 5.20s)** | Certified ground truth |
+| **Clip Duration** | 23.89s (716 frames @ 30 fps) | 10.50s (630 frames @ 60 fps) | Reference test clips |
+| **Ground-Truth Collisions** | **0** | **1 (Onset: 5.20s, Author-Annotated)** | Annotated ground truth |
 | **Emergency Crash Dispatches** | **0 (Zero False Dispatches)** | **1 (Triggered at 5.50s)** | Urgent responder alerts |
 | **Candidate Triage Episodes** | 6 monitoring episodes | 1 confirmed collision | Sub-critical triage (analyst queue) |
 | **Recall Rate** | **100% (0 missed)** | **100% (Detected)** | $\ge 90\%$ |
@@ -123,8 +123,9 @@ We evaluated MotionGuard across two reference clips:
 | **Emergency False Alarms / Hr** | **0.0 FA/hr** | 0.0 FA/hr | Emergency siren tier (zero nuisance) |
 
 > ⚠️ **Scope & Methodological Disclosures**:
-> - **Demo Scale**: Evaluating across two demonstration clips verifies the integration of the computer vision and kinematic alerting pipeline, but represents an algorithmic proof-of-concept validation suite rather than an exhaustive multi-thousand-hour academic benchmark.
-> - **Unified Dispatch Qualification**: Live emergency dispatches are governed by a single canonical rule (`is_emergency_dispatch_eligible()` in `src/risk_engine.py`): requiring multi-frame physical contact overlap ($IoU \ge 0.05$ across $\ge 2$ frames) combined with impact kinematics ($v_{closing} \ge 20$ px/s or post-impact deceleration halt). Single-frame bounding box overlap artifacts from tracker ID duplication (e.g. during dense merges) are rejected because physical collisions do not occur in a 0.0s instant.
+> - **Demo Scale & In-Sample Calibration**: Evaluating across two demonstration clips verifies the integration of the computer vision and kinematic alerting pipeline, but represents a proof-of-concept validation suite rather than an exhaustive academic benchmark. The operational thresholds were calibrated on these reference clips; out-of-sample statistical generalization requires multi-video testing across large public datasets (e.g., DoTA or CCD).
+> - **Unified Dispatch Qualification**: Live emergency dispatches are governed by a single canonical rule (`is_emergency_dispatch_eligible()` in `src/risk_engine.py`): requiring physical contact overlap ($IoU \ge 0.05$ persisting across $\ge 2$ frames) combined with impact kinematics ($v_{closing} \ge 20$ px/s or post-impact deceleration halt). Single-frame bounding box overlap artifacts from tracker ID duplication (e.g. during dense merges) are rejected because physical collisions do not occur in a 0.0s instant.
+> - **Frame-Rate Sensitivity**: Note that `crash_demo.mp4` operates at 60.0 fps while `normal.mp4` operates at 29.97 fps. A 2-frame persistence requirement corresponds to $\sim 0.033$s at 60 fps versus $\sim 0.067$s at 30 fps; production deployments should normalize persistence to absolute physical duration ($\Delta t \ge 0.05$s) across varying camera frame rates.
 
 
 
@@ -288,7 +289,7 @@ MotionGuard is designed with rigorous engineering transparency:
 1. **Open-Source License**: MotionGuard is open-sourced under the **GNU Affero General Public License v3.0 (AGPL-3.0)** to adhere to Ultralytics YOLO11 upstream licensing terms. See [`LICENSE`](LICENSE) for details.
 2. **Video Footage Provenance & Attribution**:
    - `data/videos/normal.mp4`: Royalty-free multi-lane highway surveillance footage licensed under CC0 / Open Public Domain via [Pexels Highway Traffic Archive (Video 854746)](https://www.pexels.com/video/traffic-on-the-highway-854746/). Free for commercial and personal projects; no attribution required.
-   - `data/videos/crash_demo.mp4`: Curated 10.5-second dashcam collision demonstration excerpt ($t=5.20$s certified impact onset), provided exclusively as an offline non-commercial educational & research validation asset for evaluating computer vision accident detection algorithms in a hackathon setting. In live production deployments, operators connect directly to customer-authorized municipal DOT or RTSP traffic cameras.
+   - `data/videos/crash_demo.mp4`: Curated 10.5-second dashcam excerpt from the public highway collision compilation series (`Realistic Highway Car Crashes #32`, segment at $t=5.20$s). Included strictly as a third-party offline demonstration fixture for non-commercial educational & research evaluation of safety algorithms under Fair Use (17 U.S.C. § 107); this video asset is **not** covered by MotionGuard's AGPL-3.0 software license. In live municipal deployments, operators connect directly to customer-authorized DOT or RTSP traffic cameras.
 3. **Privacy Compliance & Roadmap**:
    - **🔮 Planned Roadmap**: Automated face and license-plate blurring is not yet integrated; currently planned for future releases prior to live field deployments.
    - **RTSP Live Ingestion**: Direct RTSP surveillance streaming and sub-second per-event clip export are planned for v3.0.
