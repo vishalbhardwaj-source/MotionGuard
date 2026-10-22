@@ -74,6 +74,18 @@ def classify_severity(
         stopped_duration_seconds = event.get("stopped_duration_seconds", stopped_duration_seconds) or 0.0
         zone_type = event.get("zone_type", zone_type)
 
+    # Safe float parsing to prevent TypeError during numeric comparisons
+    if minimum_distance_px is not None:
+        try:
+            minimum_distance_px = float(minimum_distance_px)
+        except (ValueError, TypeError):
+            minimum_distance_px = None
+    if peak_closing_speed is not None:
+        try:
+            peak_closing_speed = float(peak_closing_speed)
+        except (ValueError, TypeError):
+            peak_closing_speed = 0.0
+
     post_impact_signals = post_impact_signals or []
     has_post_impact = bool(post_impact_signals)
     contact_overlap = peak_iou >= 0.05
