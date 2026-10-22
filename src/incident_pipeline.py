@@ -26,6 +26,10 @@ def run_automated_incident_pipeline(
     recipient_phone="+919876543210",
     camera_name="Highway North - Sector 4",
     max_auto_alerts=2,
+    proximity_threshold_px=None,
+    min_closing_speed_px_s=None,
+    min_consecutive_matches=None,
+    max_gap_seconds=None,
 ):
     """
     Fully automated end-to-end accident detection, emergency notification,
@@ -86,10 +90,10 @@ def run_automated_incident_pipeline(
     k_cfg = cfg.get("kinematics", {})
     findings = analyze_interactions(
         normalized_records,
-        proximity_threshold_px=k_cfg.get("proximity_threshold_px", 80.0),
-        min_closing_speed_px_s=k_cfg.get("min_closing_speed_px_s", 5.0),
-        max_gap_seconds=k_cfg.get("max_gap_seconds", 0.2),
-        min_consecutive_matches=k_cfg.get("min_consecutive_matches", 3),
+        proximity_threshold_px=proximity_threshold_px if proximity_threshold_px is not None else k_cfg.get("proximity_threshold_px", 80.0),
+        min_closing_speed_px_s=min_closing_speed_px_s if min_closing_speed_px_s is not None else k_cfg.get("min_closing_speed_px_s", 5.0),
+        max_gap_seconds=max_gap_seconds if max_gap_seconds is not None else k_cfg.get("max_gap_seconds", 0.3),
+        min_consecutive_matches=min_consecutive_matches if min_consecutive_matches is not None else k_cfg.get("min_consecutive_matches", 2),
         max_ttc_seconds=k_cfg.get("max_ttc_seconds", 3.5),
         max_normalized_distance=k_cfg.get("max_normalized_distance", 1.8),
     )
@@ -105,6 +109,8 @@ def run_automated_incident_pipeline(
             "success": True,
             "message": "No anomalous interactions detected in video sequence.",
             "total_events_detected": 0,
+            "critical_incidents_count": 0,
+            "events": [],
             "incidents_created": [],
             "dispatches": [],
         }

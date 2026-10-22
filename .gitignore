@@ -80,3 +80,6 @@ outputs/event_replays/
 outputs/event_clips/
 outputs/incident_dossiers/
 outputs/test_clips/
+
+# Custom user test videos
+data/videos/CCTV*.mp4

@@ -39,9 +39,8 @@ flowchart TD
     Evidence --> Storage["💾 Concurrent SQLite + Audit Logging"]
     Storage --> Dashboard["🖥️ 5-Tab Streamlit Command Dashboard"]
     Risk --> Dashboard
-    Dashboard --> AuthGate{"🔐 Operator PIN Gate"}
-    AuthGate -->|Simulator / Local| Dispatch["🚨 Incident Record & Simulator Dispatch"]
-    AuthGate -->|Confirmed + PIN| LiveDispatch["📱 Emergency Alert Broadcast (Telegram / Twilio)"]
+    Dashboard --> Dispatch["🚨 Incident Record & Simulator Dispatch"]
+    Dashboard --> LiveDispatch["📱 Emergency Alert Broadcast (Telegram / Twilio)"]
     Dashboard --> Export["📄 Investigation-Support PDF Dossier"]
 ```
 
@@ -64,8 +63,7 @@ flowchart TD
    - **Candidate Monitoring Tier**: Deduplicates adjacent-frame warnings into cohesive candidate interaction episodes for traffic safety analysts.
    - **Automated Emergency Dispatch Tier**: Restricted strictly to high-threat collisions ($IoU \ge 0.05$, post-impact halt, or threat score $\ge 70$). Yields **0.0 false emergency responder alerts per hour** on normal highway traffic.
 
-4. **🚨 Secure Emergency Dispatch with Severity Escalation**:
-   - **Operator PIN Authentication Gate**: Exposed dashboard ports are protected by a security gate (`OPERATOR_PIN`, default: `1234`). External telecommunications broadcasts are disabled by default and require operator PIN validation plus explicit confirmation.
+4. **🚨 Emergency Dispatch with Severity Escalation**:
    - **Telegram Instant Alerts with Snapshots**: Delivers rich alerts including camera ID, geographic location, kinematic metrics, and photographic keyframe evidence directly to responder channels.
    - **Urgent Severity Escalation Bypass**: Cooldown timers prevent spam on ongoing scenes, but automatically bypass throttling if a subsequent incident escalates to `CRITICAL` or increases threat score by $\ge 15$ points.
    - **Zero-Setup Carrier Simulator**: Safe local dispatch simulator for testing and hackathon judging.
@@ -168,7 +166,7 @@ When evaluating the live application at `http://localhost:8501`, follow this seq
 | **2** | **🔍 Interaction Investigation** | Select any auto-detected event. Inspect the visual snapshot taken at the exact instant of closest approach, view separation distance, TTC ($\tau$), and closing speed metrics. |
 | **3** | **⚖️ Risk Scenario** | Adjust simulated vehicle speed and collision toggle. Observe how the explainable risk engine scores threat level and automatically prepares an emergency dispatch. |
 | **4** | **🚨 Incident Command** | Triage and manage logged incident cases stored in SQLite. Transition status between `NEW`, `UNDER REVIEW`, and `RESOLVED` with persistent audit logs. |
-| **5** | **📋 Review & Dispatch Dossier** | Authenticate via the Operator PIN (`1234` in sidebar). Review the explainable risk vectors, test simulated or live emergency alerts, and click **"📄 Download Investigation Support Dossier (PDF)"** to export the incident report. |
+| **5** | **📋 Review & Dispatch Dossier** | Review explainable risk vectors, test simulated or live emergency alerts with safety confirmation, and click **"📄 Download Investigation Support Dossier (PDF)"** to export the incident report. |
 
 ---
 
@@ -231,7 +229,7 @@ docker build -t motionguard .
 docker run -p 8501:8501 motionguard
 ```
 
-Open your browser at **`http://localhost:8501`**. *(Note: Safe Local Simulator Mode is active by default with zero setup; configure `OPERATOR_PIN` in `.env` to unlock live external telecommunications broadcasts).*
+Open your browser at **`http://localhost:8501`**. *(Note: Safe Local Simulator Mode is active by default with zero setup; live external telecommunications broadcasts require confirmation).*
 
 ---
 
@@ -356,7 +354,7 @@ MotionGuard/
 ├── Dockerfile                  # Production container definition (Python 3.11 + FFmpeg)
 ├── download_weights.py         # Autonomous YOLO11n weight download verification
 ├── LICENSE                     # AGPL-3.0 License file
-├── .env.example                # Template for Telegram / Twilio API keys & OPERATOR_PIN
+├── .env.example                # Template for Telegram / Twilio API keys
 ├── scripts/                    # Diagnostics, benchmarks, and demonstration utilities
 ├── docs/                       # Project documentation & presentation dossier
 ├── data/

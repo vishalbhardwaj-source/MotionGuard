@@ -661,24 +661,6 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown("##### 🔐 Operator Access Gate")
-    CORRECT_PIN = os.getenv("OPERATOR_PIN")
-    pin_input = st.text_input(
-        "Operator Security PIN",
-        type="password",
-        value=st.session_state.get("operator_pin", ""),
-        help="Set OPERATOR_PIN in environment to authorize external broadcasts.",
-        key="operator_pin_input",
-    )
-    st.session_state["operator_pin"] = pin_input
-    is_operator_authenticated = bool(CORRECT_PIN and pin_input == CORRECT_PIN)
-    if is_operator_authenticated:
-        st.caption("🟢 **Authorized Operator Mode Active**")
-    elif not CORRECT_PIN:
-        st.caption("⚠️ `OPERATOR_PIN` not set in environment. Live broadcast requires set PIN.")
-    else:
-        st.caption("🔒 **Simulator Mode (Read-Only Gate)** — Enter valid PIN for live external broadcasts.")
-
     st.markdown("##### 🧹 Incident Logs & State")
     st.caption("Wipe recorded incidents and reset dashboard to clean state:")
     if st.button("🗑️ Clear Incident Logs & Reset", use_container_width=True, help="Wipe all recorded incident logs, dispatches, and reset session state."):
@@ -825,9 +807,6 @@ if pipeline_run and pipeline_run.get("incidents_created"):
         """,
         unsafe_allow_html=True,
     )
-
-_env_pin = os.getenv("OPERATOR_PIN")
-is_operator_authenticated = bool(_env_pin and st.session_state.get("operator_pin", "") == _env_pin)
 
 video_tab, interaction_tab, scenario_tab, incidents_tab, dossier_tab, calibration_tab = st.tabs(
     [
@@ -1288,9 +1267,6 @@ with scenario_tab:
                             dossier_link=dossier_link,
                         )
                         chosen_mode = "TELEGRAM" if "Telegram" in tab3_gw else ("TWILIO" if "Twilio" in tab3_gw else "SIMULATOR")
-                        if chosen_mode != "SIMULATOR" and not is_operator_authenticated:
-                            st.warning("🔒 External telecommunications gate locked: Valid Operator PIN required. Defaulting to local simulator.")
-                            chosen_mode = "SIMULATOR"
                         sms_res = dispatch_sms(
                         phone_number=alert_phone,
                         message_text=sms_text,
@@ -1609,6 +1585,7 @@ with video_tab:
                 st.session_state["active_sample_video"] = str(sample_crash)
                 st.session_state["active_uploaded_name"] = "crash_demo.mp4"
                 st.session_state["uploaded_video_path"] = str(sample_crash)
+                st.session_state.pop("last_uploaded_name", None)
                 st.session_state.pop("latest_pipeline_run", None)
                 st.session_state.pop("processed_video", None)
                 st.session_state.pop("tracking_result", None)
@@ -1626,6 +1603,7 @@ with video_tab:
                 st.session_state["active_sample_video"] = str(sample_normal)
                 st.session_state["active_uploaded_name"] = "normal.mp4"
                 st.session_state["uploaded_video_path"] = str(sample_normal)
+                st.session_state.pop("last_uploaded_name", None)
                 st.session_state.pop("latest_pipeline_run", None)
                 st.session_state.pop("processed_video", None)
                 st.session_state.pop("tracking_result", None)
@@ -1643,15 +1621,28 @@ with video_tab:
     )
 
     # Detect if user actively uploaded a new file into the uploader
-    if uploaded_video is not None and uploaded_video.name != st.session_state.get("last_uploaded_name"):
-        input_path = OUTPUT_DIR / f"uploaded_{uploaded_video.name}"
-        input_path.parent.mkdir(parents=True, exist_ok=True)
-        input_path.write_bytes(uploaded_video.getvalue())
-        st.session_state["last_uploaded_name"] = uploaded_video.name
-        st.session_state["video_source"] = "uploaded"
-        st.session_state["active_uploaded_name"] = uploaded_video.name
-        st.session_state["uploaded_video_path"] = str(input_path)
-        st.session_state.pop("active_sample_video", None)
+    if uploaded_video is not None:
+        if uploaded_video.name != st.session_state.get("last_uploaded_name") or st.session_state.get("video_source") != "uploaded":
+            input_path = OUTPUT_DIR / f"uploaded_{uploaded_video.name}"
+            input_path.parent.mkdir(parents=True, exist_ok=True)
+            input_path.write_bytes(uploaded_video.getvalue())
+            st.session_state["last_uploaded_name"] = uploaded_video.name
+            st.session_state["video_source"] = "uploaded"
+            st.session_state["active_uploaded_name"] = uploaded_video.name
+            st.session_state["uploaded_video_path"] = str(input_path)
+            st.session_state.pop("active_sample_video", None)
+            st.session_state.pop("latest_pipeline_run", None)
+            st.session_state.pop("processed_video", None)
+            st.session_state.pop("tracking_result", None)
+            st.session_state.pop("interaction_events", None)
+            st.session_state.pop("trajectory_records", None)
+            st.session_state.pop("trajectory_summary", None)
+            st.rerun()
+    elif uploaded_video is None and st.session_state.get("video_source") == "uploaded":
+        st.session_state.pop("last_uploaded_name", None)
+        st.session_state.pop("uploaded_video_path", None)
+        st.session_state.pop("active_uploaded_name", None)
+        st.session_state.pop("video_source", None)
         st.session_state.pop("latest_pipeline_run", None)
         st.session_state.pop("processed_video", None)
         st.session_state.pop("tracking_result", None)
@@ -1766,7 +1757,7 @@ with video_tab:
 
         st.subheader("🚀 Step 3: Run Analysis & Collision Detection")
 
-        with st.expander("⚡ Processing speed & resolution settings", expanded=False):
+        with st.expander("⚡ Processing speed, resolution & sensitivity settings", expanded=False):
             speed_mode = st.radio(
                 "Speed mode",
                 ["🎯 Accurate (every frame)", "⚡ Fast (every 2nd frame)", "🚀 Fastest (every 3rd frame)"],
@@ -1780,6 +1771,27 @@ with video_tab:
                 value=640,
                 help="Lower = faster processing with slight accuracy trade-off.",
             )
+            st.markdown("---")
+            st.markdown("##### 🔍 Collision & Kinematic Sensitivity")
+            kin_col1, kin_col2 = st.columns(2)
+            with kin_col1:
+                prox_threshold = st.slider(
+                    "Vehicle Proximity Threshold (px)",
+                    min_value=40,
+                    max_value=250,
+                    value=100,
+                    step=10,
+                    help="Maximum pixel distance between vehicle bounding box centers to qualify for interaction analysis.",
+                )
+            with kin_col2:
+                min_consec = st.slider(
+                    "Min Consecutive Tracking Frames",
+                    min_value=1,
+                    max_value=5,
+                    value=2,
+                    step=1,
+                    help="Minimum consecutive frames vehicles must maintain closing proximity. Set to 1-2 for high-speed or 30 FPS surveillance.",
+                )
 
         frame_skip_map = {
             "🎯 Accurate (every frame)": 0,
@@ -1876,10 +1888,11 @@ with video_tab:
                             gateway_mode=selected_mode,
                             recipient_phone=auto_phone,
                             camera_name=f"Feed: {active_feed_name}",
+                            proximity_threshold_px=prox_threshold,
+                            min_consecutive_matches=min_consec,
                         )
                         st.session_state["latest_pipeline_run"] = pipe_res
-                        if pipe_res.get("events"):
-                            st.session_state["interaction_events"] = pipe_res["events"]
+                        st.session_state["interaction_events"] = pipe_res.get("events", [])
                         if pipe_res.get("critical_incidents_count", 0) > 0:
                             st.balloons()
                             st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
@@ -1995,11 +2008,12 @@ with video_tab:
                     gateway_mode=selected_mode,
                     recipient_phone=auto_phone,
                     camera_name=f"Feed: {active_feed_name}",
+                    proximity_threshold_px=prox_threshold,
+                    min_consecutive_matches=min_consec,
                 )
                 progress_bar.progress(1.0)
                 st.session_state["latest_pipeline_run"] = pipe_res
-                if pipe_res.get("events"):
-                    st.session_state["interaction_events"] = pipe_res["events"]
+                st.session_state["interaction_events"] = pipe_res.get("events", [])
                 if pipe_res.get("critical_incidents_count", 0) > 0:
                     st.balloons()
                     st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
@@ -2109,7 +2123,11 @@ with video_tab:
                         x1, y1, x2, y2 = rec["bbox_xyxy"]
                         rec["center_xy"] = [(x1 + x2) / 2, (y1 + y2) / 2]
                     norm_recs.append(rec)
-                fnds = analyze_interactions(norm_recs)
+                fnds = analyze_interactions(
+                    norm_recs,
+                    proximity_threshold_px=prox_threshold,
+                    min_consecutive_matches=min_consec,
+                )
                 evts = aggregate_interaction_events(fnds)
                 st.session_state["interaction_events"] = evts
                 progress_bar.progress(1.0)
@@ -2175,6 +2193,33 @@ with video_tab:
                             )
                         render_explainable_risk_card(inc, title=f"Explainable Risk Breakdown ({inc['incident_id']})")
 
+            st.divider()
+        elif latest_run and latest_run.get("success"):
+            tot_evts = latest_run.get("total_events_detected", 0)
+            st.markdown(
+                f"""
+                <div style="
+                    border: 1px solid #10b981;
+                    background: rgba(16, 185, 129, 0.08);
+                    border-radius: 8px;
+                    padding: 14px 18px;
+                    margin-bottom: 12px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; font-size: 1.05rem; color: #34d399;">
+                            ✅ Video Analysis Complete · Normal Safe Traffic Flow
+                        </span>
+                        <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">
+                            VERIFIED SAFE
+                        </span>
+                    </div>
+                    <div style="font-size: 0.88rem; color: #cbd5e1; margin-top: 6px;">
+                        Analyzed <b>{tot_evts}</b> vehicle interaction candidate episodes. No critical collisions or emergency escalation thresholds were exceeded. All vehicles operated safely within normal kinematic parameters.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.divider()
 
     processed_video = st.session_state.get("processed_video")
@@ -2744,16 +2789,13 @@ with dossier_tab:
         is_external_gw = "Twilio" in sms_gateway or "Telegram" in sms_gateway
         confirm_live_dispatch = False
         if is_external_gw:
-            if not is_operator_authenticated:
-                st.warning("🔒 **External Broadcast Locked:** Enter valid Operator Security PIN in the sidebar to authorize live telecommunications delivery.")
-            else:
-                confirm_live_dispatch = st.checkbox(
-                    "⚠️ **Operator Confirmation:** I confirm authorization to transmit a live external emergency alert to the designated contact.",
-                    value=False,
-                    key=f"confirm_live_broadcast_{event_id}",
-                )
+            confirm_live_dispatch = st.checkbox(
+                "⚠️ **Live Broadcast Confirmation:** I confirm authorization to transmit a live external emergency alert to the designated contact.",
+                value=False,
+                key=f"confirm_live_broadcast_{event_id}",
+            )
 
-        dispatch_locked = is_external_gw and (not is_operator_authenticated or not confirm_live_dispatch)
+        dispatch_locked = is_external_gw and not confirm_live_dispatch
 
         if st.button(
             "🚨 Dispatch Emergency Text Alert Now",
@@ -2763,8 +2805,8 @@ with dossier_tab:
         ):
             try:
                 selected_mode = "TWILIO" if "Twilio" in sms_gateway else ("TELEGRAM" if "Telegram" in sms_gateway else "SIMULATOR")
-                if selected_mode != "SIMULATOR" and (not is_operator_authenticated or not confirm_live_dispatch):
-                    st.error("Operator authentication and confirmation required for live external dispatch.")
+                if selected_mode != "SIMULATOR" and not confirm_live_dispatch:
+                    st.error("Confirmation required for live external dispatch.")
                 else:
                     dispatch_res = dispatch_sms(
                         phone_number=dest_phone,

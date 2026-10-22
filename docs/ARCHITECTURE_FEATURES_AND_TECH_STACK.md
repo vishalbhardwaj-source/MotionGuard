@@ -64,9 +64,8 @@ flowchart TD
     Evidence --> Storage["💾 Concurrent SQLite (WAL) + JSONL Audit Logging"]
     Risk --> Storage
     Storage --> Dashboard["🖥️ 6-Tab Streamlit Operational Incident Workstation"]
-    Dashboard --> AuthGate{"🔐 Operator PIN Security Gate"}
-    AuthGate -->|Confirmed + PIN| TelemetryDispatch["📱 Multi-Gateway Emergency Dispatch (Telegram + Snapshot / SMS)"]
-    AuthGate -->|Local Simulator| LocalSim["📟 Zero-Setup Carrier Simulator"]
+    Dashboard --> TelemetryDispatch["📱 Multi-Gateway Emergency Dispatch (Telegram + Snapshot / SMS)"]
+    Dashboard --> LocalSim["📟 Zero-Setup Carrier Simulator"]
     Dashboard --> PDFExport["📄 Forensic Investigation-Support PDF Dossier (ReportLab)"]
     Dashboard --> ClipExport["🎬 Dynamic Incident Replay Clip (±2.5s HUD + H.264)"]
 ```
@@ -87,7 +86,7 @@ flowchart TD
      - **Tab 2 (🔍 Interaction Investigation)**: Explores candidate interaction episodes. Visualizes closest-approach keyframes, minimum Euclidean separation, optical TTC, and closing speeds. Hosts the 1-click **Dynamic Incident Video Clip Exporter** ($\pm 2.5$s window).
      - **Tab 3 (⚖️ Risk Scenario)**: "What-if" simulation sandbox allowing operators to adjust vehicle velocity, posted speed limit, and collision flags with real-time explainable risk vector updates.
      - **Tab 4 (🚨 Incident Command)**: Persistent incident audit workstation. Operators can query stored SQLite records and transition lifecycle statuses (`NEW` $\to$ `UNDER REVIEW` $\to$ `RESOLVED`) while updating investigator notes.
-     - **Tab 5 (📋 Review & Dispatch Dossier)**: Security-gated dispatch console. Requires operator PIN authentication before dispatching live Telegram or SMS broadcasts, presents photographic keyframe evidence cards, and exports multi-page ReportLab PDF dossiers.
+     - **Tab 5 (📋 Review & Dispatch Dossier)**: Emergency dispatch console. Features safety confirmation before dispatching live Telegram or SMS broadcasts, presents photographic keyframe evidence cards, and exports multi-page ReportLab PDF dossiers.
      - **Tab 6 (⚙️ Calibration & Matrix)**: Interactive operational calibration dashboard. Operators tune IoU contact, optical TTC, and scale-normalized distance thresholds using real-time sliders while observing live changes to the empirical $2 \times 2$ Confusion Matrix (TP, FP, FN, TN), Precision, Recall, and False Alarms/hr.
 
 ---
@@ -164,11 +163,10 @@ flowchart TD
 
 ---
 
-### 2.8 Operator-Authenticated Multi-Gateway Emergency Dispatcher
+### 2.8 Multi-Gateway Emergency Dispatcher
 * **Implementation**: `src/alert_dispatcher.py`.
 * **Features**:
-  1. **Operator PIN Security Gate**: When running on shared or public networks, live external broadcasts are locked behind an authentication gate (`OPERATOR_PIN`, default: `1234`). Prevents accidental transmissions or unauthorized alert blasts.
-  2. **Multi-Gateway Dispatch Architecture**:
+  1. **Multi-Gateway Dispatch Architecture**:
      - **Telegram Bot API**: Sends rich Markdown alerts with embedded photographic keyframe evidence snapshots directly to emergency responder group channels.
      - **Twilio REST API**: Sends direct cellular SMS emergency alerts to first-responder dispatch numbers.
      - **Local Carrier Simulator**: Fully functional offline fallback that simulates delivery receipts with unique message IDs for demonstration and judging without live API credentials.
@@ -391,7 +389,7 @@ flowchart TD
 | **Event Architecture** | **Temporal Aggregation** | Naive frame warnings | Eliminates alert fatigue by clustering adjacent frames into single incident episodes |
 | **Evidence Scoping** | **Video-Scoped Keys** | Global collision hash | Scopes keyframes by active video stem, preventing cross-video snapshot collisions |
 | **Emergency Dispatch** | **Telegram / Twilio / Sim** | Email, WebSockets, Pusher | Immediate mobile delivery with visual photo snapshots and zero-setup offline simulator |
-| **Dispatch Security** | **Operator PIN Gate** | Open dashboard, OAuth | Simple, robust security gate preventing accidental live emergency blasts on exposed ports |
+| **Dispatch Confirmation** | **Interactive Checkbox** | Open dashboard, OAuth | Safe dispatch confirmation preventing accidental live emergency blasts on exposed ports |
 | **Forensic Dossier** | **ReportLab** | WeasyPrint, wkhtmltopdf | Zero headless-browser dependencies; pure Python in-memory PDF compilation |
 | **Evidence Clips** | **OpenCV + FFmpeg** | MoviePy, GStreamer | Frame-accurate HUD telemetry burning with fast web-streamable H.264 transcoding |
 | **Benchmarking** | **Dynamic CLI Engine** | Static hardcoded tables | Dynamic evaluation of DoTA/Nexar intervals with trajectory caching & CLI |

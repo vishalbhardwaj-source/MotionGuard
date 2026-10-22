@@ -566,17 +566,7 @@ def render_project_overview_page():
             """
         )
 
-    with st.expander("🔐 4. Operator Access Security Gate", expanded=False):
-        st.markdown(
-            """
-            #### Industrial Safety & Privacy Guardrails:
-            - Live telecommunications broadcasts (Twilio SMS / Telegram Bot) are guarded behind an **Operator Security Gate** (`OPERATOR_PIN`).
-            - Exposed dashboard interfaces in public hackathons or control rooms run in **Simulator Mode** by default.
-            - External emergency dispatches require explicit operator authentication and confirmation, ensuring no accidental broadcasts are sent.
-            """
-        )
-
-    with st.expander("⚙️ 5. Empirical Calibration & Ground-Truth Confusion Matrix", expanded=False):
+    with st.expander("⚙️ 4. Empirical Calibration & Ground-Truth Confusion Matrix", expanded=False):
         st.markdown(
             r"""
             #### Interactive Empirical Tuning:
