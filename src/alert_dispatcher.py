@@ -81,6 +81,8 @@ def format_emergency_sms(
     incident_id=None,
     threat_level=None,
     threat_score=None,
+    dossier_url=None,
+    dossier_link=None,
     **kwargs,
 ):
     """
@@ -89,6 +91,19 @@ def format_emergency_sms(
     """
     event_id = event.get("event_id", "EVT-UNKNOWN")
     inc_id = incident_id or event.get("incident_id") or event_id
+
+    # Investigation support dossier link resolution
+    target_dossier_link = (
+        dossier_link
+        or dossier_url
+        or event.get("dossier_link")
+        or event.get("dossier_url")
+        or kwargs.get("dossier_link")
+        or kwargs.get("dossier_url")
+        or os.getenv("DOSSIER_URL")
+        or os.getenv("INVESTIGATION_DOSSIER_URL")
+        or os.getenv("DOSSIER_BASE_URL", "http://localhost:8501")
+    )
 
     # Threat assessment & level
     level = threat_level or event.get("threat_level", "HIGH")
@@ -166,7 +181,7 @@ def format_emergency_sms(
         f"{kinematics_text}\n\n"
         f"📋 Action Required:\n"
         f"Forensic decision-support candidate flagged for operator triage.\n"
-        f"🔗 Live Workstation Dossier: http://localhost:8501\n"
+        f"🔗 Investigation Support Dossier: {target_dossier_link}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     return message
@@ -198,6 +213,9 @@ def dispatch_sms(
     threat_level=None,
     cooldown_seconds=None,
     gateway_mode="AUTO",
+    dossier_url=None,
+    dossier_link=None,
+    **kwargs,
 ):
     """
     Dispatch emergency alert to authorities via Twilio SMS, Telegram Bot (with snapshot support),
@@ -209,6 +227,16 @@ def dispatch_sms(
     clean_phone = sanitize_phone_number(phone_number)
     now_iso = datetime.datetime.now().astimezone().isoformat()
     mode = (gateway_mode or "AUTO").upper()
+
+    # Ensure investigation support dossier link is included in dispatch text if specified
+    resolved_dossier_link = (
+        dossier_link
+        or dossier_url
+        or kwargs.get("dossier_link")
+        or kwargs.get("dossier_url")
+    )
+    if resolved_dossier_link and resolved_dossier_link not in message_text:
+        message_text = f"{message_text}\n🔗 Investigation Support Dossier: {resolved_dossier_link}"
 
     # Rate limiting / cooldown check with severity escalation bypass
     if cooldown_seconds and camera_id:

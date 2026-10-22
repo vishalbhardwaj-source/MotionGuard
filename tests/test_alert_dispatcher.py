@@ -47,6 +47,22 @@ def test_format_emergency_sms():
     assert "Junction #10" in msg
     assert "CAM-99" in msg
     assert "Northbound lane 2" in msg
+    assert "Investigation Support Dossier" in msg
+    assert "http://localhost:8501" in msg
+
+
+def test_format_emergency_sms_custom_dossier_link():
+    mock_event = {
+        "event_id": "PI-0004",
+        "evidence_timestamp_seconds": 6.6,
+        "track_ids": [35, 83],
+    }
+    custom_url = "https://ops.motionguard.ai/dossiers/MG-2026-99"
+    msg = format_emergency_sms(
+        mock_event,
+        dossier_link=custom_url,
+    )
+    assert f"Investigation Support Dossier: {custom_url}" in msg
 
 
 def test_simulated_dispatch(tmp_path):
@@ -169,3 +185,33 @@ def test_mock_telegram_photo_dispatch(mock_post, tmp_path):
     assert res["message_id"] == "99999"
     assert res["photo_attached"] is True
     assert "sendPhoto" in mock_post.call_args[0][0]
+
+
+@patch("src.alert_dispatcher.requests.post")
+def test_mock_telegram_dispatch_includes_dossier_link(mock_post):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"result": {"message_id": 12345}}
+    mock_post.return_value = mock_resp
+
+    mock_event = {
+        "event_id": "PI-0999",
+        "evidence_timestamp_seconds": 4.5,
+        "track_ids": [10, 20],
+        "minimum_distance_px": 5.0,
+        "peak_closing_speed_px_per_second": 30.0,
+    }
+    dossier_url = "https://ops.motionguard.ai/investigation_dossiers/PI-0999.pdf"
+    msg = format_emergency_sms(mock_event, dossier_link=dossier_url)
+
+    res = dispatch_sms(
+        phone_number="+919876543210",
+        message_text=msg,
+        telegram_token="fake_bot_token",
+        telegram_chat_id="123456",
+        gateway_mode="TELEGRAM",
+    )
+    assert res["success"] is True
+    assert "sendMessage" in mock_post.call_args[0][0]
+    payload = mock_post.call_args[1]["json"]
+    assert f"Investigation Support Dossier: {dossier_url}" in payload["text"]

@@ -178,6 +178,7 @@ def run_automated_incident_pipeline(
         should_dispatch = auto_dispatch and is_emergency_dispatch_eligible(event)
         if should_dispatch:
             candidate_label = f"INCIDENT CANDIDATE [{risk_result['threat_level']}] - HUMAN REVIEW REQUIRED"
+            dossier_link = os.getenv("DOSSIER_URL") or os.getenv("INVESTIGATION_DOSSIER_URL") or "http://localhost:8501"
             sms_text = format_emergency_sms(
                 event,
                 camera_name=camera_name,
@@ -186,6 +187,7 @@ def run_automated_incident_pipeline(
                 incident_id=report["incident_id"],
                 threat_level=risk_result["threat_level"],
                 threat_score=risk_result["threat_score"],
+                dossier_link=dossier_link,
             )
 
             dispatch_res = dispatch_sms(
@@ -194,6 +196,7 @@ def run_automated_incident_pipeline(
                 photo_path=valid_evidence,
                 camera_id="CAM-01",
                 gateway_mode=gateway_mode,
+                dossier_link=dossier_link,
             )
             log_sms_dispatch(dispatch_res)
             dispatches.append(dispatch_res)

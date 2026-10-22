@@ -1262,6 +1262,7 @@ with scenario_tab:
                 sms_res = None
                 if auto_sms and alert_phone:
                     try:
+                        dossier_link = os.getenv("DOSSIER_URL") or os.getenv("INVESTIGATION_DOSSIER_URL") or "http://localhost:8501"
                         sms_text = format_emergency_sms(
                             {
                                 "event_id": report["incident_id"],
@@ -1274,6 +1275,7 @@ with scenario_tab:
                             incident_id=report["incident_id"],
                             threat_level=risk["threat_level"],
                             threat_score=risk["threat_score"],
+                            dossier_link=dossier_link,
                         )
                         chosen_mode = "TELEGRAM" if "Telegram" in tab3_gw else ("TWILIO" if "Twilio" in tab3_gw else "SIMULATOR")
                         if chosen_mode != "SIMULATOR" and not is_operator_authenticated:
@@ -1287,6 +1289,7 @@ with scenario_tab:
                         threat_level=result.get("threat_level", "LOW"),
                         cooldown_seconds=60,
                         gateway_mode=chosen_mode,
+                        dossier_link=dossier_link,
                     )
                         log_sms_dispatch(sms_res)
                         st.success(f"📱 Emergency Alert Dispatched to {sms_res['recipient']} ({sms_res['channel']})!")
@@ -1680,22 +1683,45 @@ with video_tab:
             pass
 
         # Quick Action Video Processing Bar (directly under active feed)
-        vp_col1, vp_col2 = st.columns([2, 1])
+        is_bench = active_feed_name in ("crash_demo.mp4", "normal.mp4")
+        if is_bench:
+            vp_col1, vp_col2, vp_col3 = st.columns([2, 1.8, 1.2])
+        else:
+            vp_col1, vp_col2 = st.columns([2, 1])
+
         with vp_col1:
             run_proc_video_top = st.button(
                 "🎬 Process Video & Run Incident Detection",
                 type="primary",
                 use_container_width=True,
                 key="btn_proc_video_top",
-                help="Process the active surveillance video: runs YOLO11n object detection, ByteTrack tracking, collision physics, and automated alert dispatch.",
+                help="Process active video with YOLO11n object detection, ByteTrack tracking, collision physics, and automated alert dispatch.",
             )
-        with vp_col2:
-            run_track_video_top = st.button(
-                "📹 Process Video (Tracking Only)",
-                use_container_width=True,
-                key="btn_proc_video_top_track_only",
-                help="Process video with YOLO11n + ByteTrack to visualize detection bounding boxes and trajectories without alerting.",
-            )
+        if is_bench:
+            with vp_col2:
+                run_instant_demo = st.button(
+                    "⚡ Instant Benchmark Demo (< 1s)",
+                    type="secondary",
+                    use_container_width=True,
+                    key="btn_instant_demo_top",
+                    help="Instantly run collision physics and emergency dispatch using certified benchmark telemetry without waiting for re-tracking.",
+                )
+            with vp_col3:
+                run_track_video_top = st.button(
+                    "📹 Process Video (Tracking Only)",
+                    use_container_width=True,
+                    key="btn_proc_video_top_track_only",
+                    help="Process video with YOLO11n + ByteTrack to visualize detection bounding boxes and trajectories without alerting.",
+                )
+        else:
+            run_instant_demo = False
+            with vp_col2:
+                run_track_video_top = st.button(
+                    "📹 Process Video (Tracking Only)",
+                    use_container_width=True,
+                    key="btn_proc_video_top_track_only",
+                    help="Process video with YOLO11n + ByteTrack to visualize detection bounding boxes and trajectories without alerting.",
+                )
 
         st.subheader("⚙️ Step 2: Emergency Alert Gateway Configuration")
         auto_col1, auto_col2 = st.columns([1, 1])
@@ -1753,7 +1779,11 @@ with video_tab:
         chosen_frame_skip = frame_skip_map[speed_mode]
 
         # Master Video Processing Execution Buttons
-        step3_col1, step3_col2 = st.columns([2, 1])
+        if is_bench:
+            step3_col1, step3_col2, step3_col3 = st.columns([2, 1.8, 1.2])
+        else:
+            step3_col1, step3_col2 = st.columns([2, 1])
+
         with step3_col1:
             run_proc_video_step3 = st.button(
                 "🎬 Process Video & Run Autonomous Pipeline (1-Click)",
@@ -1762,121 +1792,44 @@ with video_tab:
                 key="btn_proc_step3",
                 help="Execute complete video processing: YOLO11n detection, ByteTrack tracking, collision physics, and alert dispatch.",
             )
-        with step3_col2:
-            run_track_video_step3 = st.button(
-                "📹 Process Video (Tracking Only)",
-                use_container_width=True,
-                key="btn_track_step3",
-                help="Run neural detection and tracking only to inspect trajectories without emergency dispatches.",
-            )
+        if is_bench:
+            with step3_col2:
+                run_instant_demo_step3 = st.button(
+                    "⚡ Instant Benchmark Demo (< 1s)",
+                    type="secondary",
+                    use_container_width=True,
+                    key="btn_instant_step3",
+                    help="Instantly evaluate collision kinematics using certified benchmark telemetry without waiting for re-tracking.",
+                )
+            with step3_col3:
+                run_track_video_step3 = st.button(
+                    "📹 Process Video (Tracking Only)",
+                    use_container_width=True,
+                    key="btn_track_step3",
+                    help="Run neural detection and tracking only to inspect trajectories without emergency dispatches.",
+                )
+        else:
+            run_instant_demo_step3 = False
+            with step3_col2:
+                run_track_video_step3 = st.button(
+                    "📹 Process Video (Tracking Only)",
+                    use_container_width=True,
+                    key="btn_track_step3",
+                    help="Run neural detection and tracking only to inspect trajectories without emergency dispatches.",
+                )
 
-        if run_proc_video_top or run_proc_video_step3:
-            with st.spinner("⚡ Running YOLO detection, tracking, collision detection & emergency escalation..."):
-                try:
-                    output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
-                    trajectory_path = OUTPUT_DIR / "uploaded_trajectories.jsonl"
-                    model = load_model()
-                    result = track_video(
-                        video_path=input_path,
-                        output_path=output_path,
-                        model=model,
-                        trajectory_output_path=trajectory_path,
-                        imgsz=imgsz_choice,
-                        frame_skip=chosen_frame_skip,
-                    )
+        should_run_instant = (run_instant_demo or run_instant_demo_step3) if is_bench else False
 
-                    trajectory_records = []
-                    if trajectory_path.is_file():
-                        with trajectory_path.open("r", encoding="utf-8") as file:
+        if should_run_instant:
+            bench_file = Path("data/benchmarks/crash_trajectories.jsonl") if active_feed_name == "crash_demo.mp4" else Path("data/benchmarks/normal_trajectories.jsonl")
+            if bench_file.is_file():
+                with st.spinner("⚡ Running Instant Benchmark Evaluation..."):
+                    try:
+                        trajectory_records = []
+                        with bench_file.open("r", encoding="utf-8") as file:
                             for line in file:
                                 if line.strip():
                                     trajectory_records.append(json.loads(line))
-
-                    trajectory_results = analyze_trajectories(trajectory_records)
-                    valid_speeds = [
-                        item["image_speed_px_per_second"]
-                        for item in trajectory_results
-                        if item.get("image_speed_px_per_second") is not None
-                    ]
-                    st.session_state["trajectory_summary"] = {
-                        "records_exported": len(trajectory_records),
-                        "motion_measurements": len(valid_speeds),
-                        "average_image_speed_px_per_second": (
-                            round(sum(valid_speeds) / len(valid_speeds), 2)
-                            if valid_speeds else None
-                        ),
-                    }
-                    st.session_state["trajectory_records"] = trajectory_records
-
-                    web_output_path = OUTPUT_DIR / "uploaded_tracked_web.mp4"
-                    conversion = subprocess.run(
-                        [
-                            "ffmpeg",
-                            "-y",
-                            "-i", str(output_path),
-                            "-c:v", "libx264",
-                            "-preset", "fast",
-                            "-crf", "23",
-                            "-pix_fmt", "yuv420p",
-                            "-movflags", "+faststart",
-                            "-an",
-                            str(web_output_path),
-                        ],
-                        capture_output=True,
-                        text=True,
-                    )
-                    if conversion.returncode == 0 and web_output_path.is_file():
-                        st.session_state["processed_video"] = str(web_output_path)
-                    else:
-                        st.session_state["processed_video"] = str(output_path)
-
-                    st.session_state["tracking_result"] = result
-
-                    selected_mode = "TELEGRAM" if "Telegram" in auto_gateway else ("TWILIO" if "Twilio" in auto_gateway else "SIMULATOR")
-                    pipe_res = run_automated_incident_pipeline(
-                        video_path=str(input_path),
-                        trajectory_records=trajectory_records,
-                        auto_dispatch=auto_dispatch_toggle,
-                        gateway_mode=selected_mode,
-                        recipient_phone=auto_phone,
-                        camera_name=f"Feed: {active_feed_name}",
-                    )
-                    st.session_state["latest_pipeline_run"] = pipe_res
-                    if pipe_res.get("events"):
-                        st.session_state["interaction_events"] = pipe_res["events"]
-                    if pipe_res.get("critical_incidents_count", 0) > 0:
-                        st.balloons()
-                        st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
-                    else:
-                        st.toast("✅ Video processed: No collision detected.", icon="✅")
-                    st.rerun()
-                except Exception as error:
-                    st.error(f"Autonomous pipeline failed: {error}")
-
-        # Step-by-Step Manual Tracking Button
-        with st.expander("🛠️ Advanced Tracking Settings & Manual Inspection", expanded=False):
-            btn_track_only_step = st.button("🎯 Track Video & Generate Trajectories Only", key="btn_track_only_step")
-
-        if run_track_video_top or run_track_video_step3 or btn_track_only_step:
-            with st.spinner("Tracking vehicles in uploaded video..."):
-                    try:
-                        output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
-                        trajectory_path = OUTPUT_DIR / "uploaded_trajectories.jsonl"
-                        model = load_model()
-                        result = track_video(
-                            video_path=input_path,
-                            output_path=output_path,
-                            model=model,
-                            trajectory_output_path=trajectory_path,
-                            imgsz=imgsz_choice,
-                            frame_skip=chosen_frame_skip,
-                        )
-                        trajectory_records = []
-                        if trajectory_path.is_file():
-                            with trajectory_path.open("r", encoding="utf-8") as file:
-                                for line in file:
-                                    if line.strip():
-                                        trajectory_records.append(json.loads(line))
 
                         trajectory_results = analyze_trajectories(trajectory_records)
                         valid_speeds = [
@@ -1895,44 +1848,265 @@ with video_tab:
                         st.session_state["trajectory_records"] = trajectory_records
 
                         web_output_path = OUTPUT_DIR / "uploaded_tracked_web.mp4"
-                        conversion = subprocess.run(
-                            [
-                                "ffmpeg",
-                                "-y",
-                                "-i", str(output_path),
-                                "-c:v", "libx264",
-                                "-preset", "fast",
-                                "-crf", "23",
-                                "-pix_fmt", "yuv420p",
-                                "-movflags", "+faststart",
-                                "-an",
-                                str(web_output_path),
-                            ],
-                            capture_output=True,
-                            text=True,
+                        if not web_output_path.is_file() and input_path.is_file():
+                            subprocess.run([
+                                "ffmpeg", "-y", "-i", str(input_path),
+                                "-c:v", "libx264", "-preset", "ultrafast",
+                                "-crf", "24", "-pix_fmt", "yuv420p",
+                                "-movflags", "+faststart", "-an",
+                                str(web_output_path)
+                            ], capture_output=True)
+                        st.session_state["processed_video"] = str(web_output_path) if web_output_path.is_file() else str(input_path)
+
+                        selected_mode = "TELEGRAM" if "Telegram" in auto_gateway else ("TWILIO" if "Twilio" in auto_gateway else "SIMULATOR")
+                        pipe_res = run_automated_incident_pipeline(
+                            video_path=str(input_path),
+                            trajectory_records=trajectory_records,
+                            auto_dispatch=auto_dispatch_toggle,
+                            gateway_mode=selected_mode,
+                            recipient_phone=auto_phone,
+                            camera_name=f"Feed: {active_feed_name}",
                         )
-                        if conversion.returncode == 0 and web_output_path.is_file():
-                            st.session_state["processed_video"] = str(web_output_path)
+                        st.session_state["latest_pipeline_run"] = pipe_res
+                        if pipe_res.get("events"):
+                            st.session_state["interaction_events"] = pipe_res["events"]
+                        if pipe_res.get("critical_incidents_count", 0) > 0:
+                            st.balloons()
+                            st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
                         else:
-                            st.session_state["processed_video"] = str(output_path)
-
-                        st.session_state["tracking_result"] = result
-
-                        # Compute interaction events so tabs are populated
-                        norm_recs = []
-                        for r in trajectory_records:
-                            rec = dict(r)
-                            if "center_xy" not in rec and "bbox_xyxy" in rec:
-                                x1, y1, x2, y2 = rec["bbox_xyxy"]
-                                rec["center_xy"] = [(x1 + x2) / 2, (y1 + y2) / 2]
-                            norm_recs.append(rec)
-                        fnds = analyze_interactions(norm_recs)
-                        evts = aggregate_interaction_events(fnds)
-                        st.session_state["interaction_events"] = evts
-                        st.success("Video tracking & trajectory analysis completed!")
+                            st.toast("✅ Benchmark processed: No collision detected.", icon="✅")
                         st.rerun()
                     except Exception as error:
-                        st.error(f"Tracking failed: {error}")
+                        st.error(f"Instant benchmark evaluation failed: {error}")
+
+        if run_proc_video_top or run_proc_video_step3:
+            prog_container = st.container()
+            with prog_container:
+                status_placeholder = st.empty()
+                progress_bar = st.progress(0.0)
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                m1 = metric_col1.empty()
+                m2 = metric_col2.empty()
+                m3 = metric_col3.empty()
+
+            def pipeline_progress(progress, current_frame=None, total_frames=None, current_fps=None):
+                progress_bar.progress(min(max(float(progress), 0.0), 1.0))
+                pct = int(progress * 100)
+                if current_frame is not None and total_frames is not None:
+                    fps_txt = f"{current_fps:.1f} FPS" if current_fps else "Processing..."
+                    eta_sec = max(0.0, (total_frames - current_frame) / current_fps) if current_fps and current_fps > 0 else 0.0
+                    status_placeholder.markdown(
+                        f"🚀 **Stage 1/3: YOLO11 Neural Detection & Tracking** — `{pct}%` (`{current_frame}/{total_frames}` frames)"
+                    )
+                    m1.metric("Processed Frames", f"{current_frame} / {total_frames}")
+                    m2.metric("Inference Speed", fps_txt)
+                    m3.metric("Estimated Time Left", f"{eta_sec:.1f}s")
+                else:
+                    status_placeholder.markdown(f"🚀 **Stage 1/3: YOLO11 Neural Detection & Tracking** — `{pct}%`")
+
+            try:
+                output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
+                trajectory_path = OUTPUT_DIR / "uploaded_trajectories.jsonl"
+                model = load_model()
+                result = track_video(
+                    video_path=input_path,
+                    output_path=output_path,
+                    model=model,
+                    trajectory_output_path=trajectory_path,
+                    imgsz=imgsz_choice,
+                    frame_skip=chosen_frame_skip,
+                    progress_callback=pipeline_progress,
+                )
+
+                trajectory_records = []
+                if trajectory_path.is_file():
+                    with trajectory_path.open("r", encoding="utf-8") as file:
+                        for line in file:
+                            if line.strip():
+                                trajectory_records.append(json.loads(line))
+
+                trajectory_results = analyze_trajectories(trajectory_records)
+                valid_speeds = [
+                    item["image_speed_px_per_second"]
+                    for item in trajectory_results
+                    if item.get("image_speed_px_per_second") is not None
+                ]
+                st.session_state["trajectory_summary"] = {
+                    "records_exported": len(trajectory_records),
+                    "motion_measurements": len(valid_speeds),
+                    "average_image_speed_px_per_second": (
+                        round(sum(valid_speeds) / len(valid_speeds), 2)
+                        if valid_speeds else None
+                    ),
+                }
+                st.session_state["trajectory_records"] = trajectory_records
+
+                status_placeholder.markdown("🎬 **Stage 2/3: Compiling Web Playback Stream (libx264 ultrafast)...**")
+                progress_bar.progress(0.85)
+                m1.metric("Current Stage", "Video Transcode")
+                m2.metric("Encoder", "libx264 Ultrafast")
+                m3.metric("Status", "In Progress")
+
+                web_output_path = OUTPUT_DIR / "uploaded_tracked_web.mp4"
+                conversion = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i", str(output_path),
+                        "-c:v", "libx264",
+                        "-preset", "ultrafast",
+                        "-crf", "23",
+                        "-pix_fmt", "yuv420p",
+                        "-movflags", "+faststart",
+                        "-an",
+                        str(web_output_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if conversion.returncode == 0 and web_output_path.is_file():
+                    st.session_state["processed_video"] = str(web_output_path)
+                else:
+                    st.session_state["processed_video"] = str(output_path)
+
+                st.session_state["tracking_result"] = result
+
+                selected_mode = "TELEGRAM" if "Telegram" in auto_gateway else ("TWILIO" if "Twilio" in auto_gateway else "SIMULATOR")
+                status_placeholder.markdown(f"🚨 **Stage 3/3: Evaluating Kinematic Physics & Dispatching via `{selected_mode}`...**")
+                progress_bar.progress(0.95)
+                m1.metric("Current Stage", "Collision Physics")
+                m2.metric("Gateway", selected_mode)
+                m3.metric("Target Phone", auto_phone)
+
+                pipe_res = run_automated_incident_pipeline(
+                    video_path=str(input_path),
+                    trajectory_records=trajectory_records,
+                    auto_dispatch=auto_dispatch_toggle,
+                    gateway_mode=selected_mode,
+                    recipient_phone=auto_phone,
+                    camera_name=f"Feed: {active_feed_name}",
+                )
+                progress_bar.progress(1.0)
+                st.session_state["latest_pipeline_run"] = pipe_res
+                if pipe_res.get("events"):
+                    st.session_state["interaction_events"] = pipe_res["events"]
+                if pipe_res.get("critical_incidents_count", 0) > 0:
+                    st.balloons()
+                    st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
+                else:
+                    st.toast("✅ Video processed: No collision detected.", icon="✅")
+                st.rerun()
+            except Exception as error:
+                st.error(f"Autonomous pipeline failed: {error}")
+
+        # Step-by-Step Manual Tracking Button
+        with st.expander("🛠️ Advanced Tracking Settings & Manual Inspection", expanded=False):
+            btn_track_only_step = st.button("🎯 Track Video & Generate Trajectories Only", key="btn_track_only_step")
+
+        if run_track_video_top or run_track_video_step3 or btn_track_only_step:
+            prog_container = st.container()
+            with prog_container:
+                status_placeholder = st.empty()
+                progress_bar = st.progress(0.0)
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                m1 = metric_col1.empty()
+                m2 = metric_col2.empty()
+                m3 = metric_col3.empty()
+
+            def track_progress(progress, current_frame=None, total_frames=None, current_fps=None):
+                progress_bar.progress(min(max(float(progress), 0.0), 1.0))
+                pct = int(progress * 100)
+                if current_frame is not None and total_frames is not None:
+                    fps_txt = f"{current_fps:.1f} FPS" if current_fps else "Processing..."
+                    eta_sec = max(0.0, (total_frames - current_frame) / current_fps) if current_fps and current_fps > 0 else 0.0
+                    status_placeholder.markdown(
+                        f"🎯 **YOLO11 Detection & Tracking Only** — `{pct}%` (`{current_frame}/{total_frames}` frames)"
+                    )
+                    m1.metric("Processed Frames", f"{current_frame} / {total_frames}")
+                    m2.metric("Inference Speed", fps_txt)
+                    m3.metric("Estimated Time Left", f"{eta_sec:.1f}s")
+                else:
+                    status_placeholder.markdown(f"🎯 **YOLO11 Detection & Tracking Only** — `{pct}%`")
+
+            try:
+                output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
+                trajectory_path = OUTPUT_DIR / "uploaded_trajectories.jsonl"
+                model = load_model()
+                result = track_video(
+                    video_path=input_path,
+                    output_path=output_path,
+                    model=model,
+                    trajectory_output_path=trajectory_path,
+                    imgsz=imgsz_choice,
+                    frame_skip=chosen_frame_skip,
+                    progress_callback=track_progress,
+                )
+                trajectory_records = []
+                if trajectory_path.is_file():
+                    with trajectory_path.open("r", encoding="utf-8") as file:
+                        for line in file:
+                            if line.strip():
+                                trajectory_records.append(json.loads(line))
+
+                trajectory_results = analyze_trajectories(trajectory_records)
+                valid_speeds = [
+                    item["image_speed_px_per_second"]
+                    for item in trajectory_results
+                    if item.get("image_speed_px_per_second") is not None
+                ]
+                st.session_state["trajectory_summary"] = {
+                    "records_exported": len(trajectory_records),
+                    "motion_measurements": len(valid_speeds),
+                    "average_image_speed_px_per_second": (
+                        round(sum(valid_speeds) / len(valid_speeds), 2)
+                        if valid_speeds else None
+                    ),
+                }
+                st.session_state["trajectory_records"] = trajectory_records
+
+                status_placeholder.markdown("🎬 **Transcoding Web Playback Stream (libx264 ultrafast)...**")
+                progress_bar.progress(0.90)
+
+                web_output_path = OUTPUT_DIR / "uploaded_tracked_web.mp4"
+                conversion = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i", str(output_path),
+                        "-c:v", "libx264",
+                        "-preset", "ultrafast",
+                        "-crf", "23",
+                        "-pix_fmt", "yuv420p",
+                        "-movflags", "+faststart",
+                        "-an",
+                        str(web_output_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if conversion.returncode == 0 and web_output_path.is_file():
+                    st.session_state["processed_video"] = str(web_output_path)
+                else:
+                    st.session_state["processed_video"] = str(output_path)
+
+                st.session_state["tracking_result"] = result
+
+                # Compute interaction events so tabs are populated
+                norm_recs = []
+                for r in trajectory_records:
+                    rec = dict(r)
+                    if "center_xy" not in rec and "bbox_xyxy" in rec:
+                        x1, y1, x2, y2 = rec["bbox_xyxy"]
+                        rec["center_xy"] = [(x1 + x2) / 2, (y1 + y2) / 2]
+                    norm_recs.append(rec)
+                fnds = analyze_interactions(norm_recs)
+                evts = aggregate_interaction_events(fnds)
+                st.session_state["interaction_events"] = evts
+                progress_bar.progress(1.0)
+                st.success("Video tracking & trajectory analysis completed!")
+                st.rerun()
+            except Exception as error:
+                st.error(f"Tracking failed: {error}")
 
         # Display autonomous execution results if available
         latest_run = st.session_state.get("latest_pipeline_run")
@@ -2527,12 +2701,14 @@ with dossier_tab:
                 )
 
         event_risk = assess_event_risk(selected_event)
+        dossier_link = os.getenv("DOSSIER_URL") or os.getenv("INVESTIGATION_DOSSIER_URL") or "http://localhost:8501"
         sms_body = format_emergency_sms(
             selected_event,
             camera_name=camera_loc,
             incident_id=selected_event.get("incident_id") or selected_event.get("event_id"),
             threat_level=event_risk.get("threat_level"),
             threat_score=event_risk.get("threat_score"),
+            dossier_link=dossier_link,
         )
 
         with sms_c2:
@@ -2594,6 +2770,7 @@ with dossier_tab:
                         threat_level=dossier_risk.get("threat_level"),
                         cooldown_seconds=60,
                         gateway_mode=selected_mode,
+                        dossier_link=dossier_link,
                     )
                 log_sms_dispatch(dispatch_res)
                 if dispatch_res.get("success"):

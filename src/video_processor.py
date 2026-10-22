@@ -215,8 +215,10 @@ def track_video(
         imgsz:      YOLO inference image size. Smaller = faster (e.g. 320 or 416).
         frame_skip: Process every (frame_skip+1)th frame. 0 = all, 1 = every other.
     """
+    import time
     import torch
 
+    start_time = time.time()
     input_path = Path(video_path)
     output_file = Path(output_path)
 
@@ -235,9 +237,8 @@ def track_video(
     if model is None:
         model = YOLO("yolo11n.pt")
 
-    # Use GPU when available; FP16 roughly halves inference time
+    # Use GPU when available
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    use_half = device == "cuda"
 
     cap = cv2.VideoCapture(str(input_path))
 
@@ -258,12 +259,22 @@ def track_video(
             "w", encoding="utf-8"
         )
 
+    # Determine output dimensions - scale down oversized feeds (e.g. 1080p -> 720p) for 2.5x faster video write and web streaming
+    out_w, out_h = info["width"], info["height"]
+    scale_factor = 1.0
+    if out_w > 1280 or out_h > 1280:
+        scale_factor = 1280.0 / max(out_w, out_h)
+        out_w = int(round(out_w * scale_factor))
+        out_h = int(round(out_h * scale_factor))
+        out_w = out_w if out_w % 2 == 0 else out_w - 1
+        out_h = out_h if out_h % 2 == 0 else out_h - 1
+
     try:
         writer = cv2.VideoWriter(
             str(output_file),
             cv2.VideoWriter_fourcc(*"mp4v"),
             fps,
-            (info["width"], info["height"]),
+            (out_w, out_h),
         )
 
         if not writer.isOpened():
@@ -271,6 +282,8 @@ def track_video(
         trajectory_history = {}
         last_seen_frame = {}
         raw_frame_index = 0
+        target_classes = list(classes) if classes is not None else None
+
         while True:
             success, frame = cap.read()
             if not success:
@@ -281,19 +294,21 @@ def track_video(
                 raw_frame_index += 1
                 frames_processed += 1
                 if annotated_frame is not None:
-                    writer.write(annotated_frame)
+                    write_frame = (
+                        cv2.resize(annotated_frame, (out_w, out_h), interpolation=cv2.INTER_AREA)
+                        if scale_factor < 1.0 else annotated_frame
+                    )
+                    writer.write(write_frame)
                 continue
 
             raw_frame_index += 1
 
-            target_classes = list(classes) if classes is not None else None
             result = model.track(
                 source=frame,
                 persist=True,
                 tracker=tracker,
                 classes=target_classes,
                 device=device,
-                half=use_half,
                 imgsz=imgsz,
                 conf=confidence,
                 verbose=False,
@@ -467,58 +482,34 @@ def track_video(
                     cv2.LINE_AA,
                 )
 
-                # Mark the latest tracked position.
-                current = points[-1]
-                cv2.circle(
-                    annotated_frame,
-                    current,
-                    7,
-                    (255, 255, 255),
-                    2,
-                    cv2.LINE_AA,
+            if annotated_frame is not None:
+                write_frame = (
+                    cv2.resize(annotated_frame, (out_w, out_h), interpolation=cv2.INTER_AREA)
+                    if scale_factor < 1.0 else annotated_frame
                 )
-                cv2.circle(
-                    annotated_frame,
-                    current,
-                    4,
-                    color,
-                    -1,
-                    cv2.LINE_AA,
-                )
-
-                # Highlight the object's latest position.
-                current = points[-1]
-
-                cv2.circle(
-                    annotated_frame,
-                    current,
-                    7,
-                    (255, 255, 255),
-                    2,
-                    cv2.LINE_AA,
-                )
-                cv2.circle(
-                    annotated_frame,
-                    current,
-                    4,
-                    color,
-                    -1,
-                    cv2.LINE_AA,
-                )
-
-            writer.write(annotated_frame)
-           
-
+                writer.write(write_frame)
 
             frames_processed += 1
 
             if progress_callback and (
-                frames_processed % 5 == 0
+                frames_processed % 4 == 0
                 or frames_processed == total_frames
             ):
-                progress_callback(
-                    min(frames_processed / total_frames, 1.0)
-                )
+                fraction = min(frames_processed / total_frames, 1.0)
+                elapsed = max(time.time() - start_time, 0.001)
+                fps_val = frames_processed / elapsed
+                try:
+                    progress_callback(
+                        progress=fraction,
+                        current_frame=frames_processed,
+                        total_frames=total_frames,
+                        current_fps=fps_val,
+                    )
+                except TypeError:
+                    try:
+                        progress_callback(fraction, frames_processed, total_frames, fps_val)
+                    except TypeError:
+                        progress_callback(fraction)
 
 
     finally:

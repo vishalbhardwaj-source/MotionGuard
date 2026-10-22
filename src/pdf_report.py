@@ -191,26 +191,38 @@ def create_interaction_pdf(event, evidence_path=None):
 
     story.extend([table, Spacer(1, 4 * mm)])
 
-    # Explainable Risk Breakdown Section
+    # Explainable Risk Breakdown Section (Round 2 Stretch: Active Thresholds & Measured Values)
     story.append(Paragraph("3. Explainable Risk Factor Breakdown", heading_style))
     story.append(
         Paragraph(
-            "Algorithmic decision-support factors explaining how the system characterized event risk:",
+            "Algorithmic decision-support factors explaining how the image-space scorer characterized event risk:",
             styles["BodyText"],
         )
     )
-    story.append(Spacer(1, 2 * mm))
+    story.append(Spacer(1, 1 * mm))
 
     risk_eval = assess_event_risk(event)
-    factor_rows = [["Evaluation Factor", "Algorithmic Finding", "Investigation Rationale & Sensor Context"]]
+    active_thresh = risk_eval.get("thresholds_used") or {}
+    thresh_line = (
+        f"<b>Active Scorer Thresholds:</b> "
+        f"Distance [Crit &le; {active_thresh.get('distance_critical_px', 15.0):.1f} px, Mod &le; {active_thresh.get('distance_moderate_px', 45.0):.1f} px] | "
+        f"Closing [Crit &ge; {active_thresh.get('closing_speed_critical_px_s', 30.0):.1f} px/s, Mod &ge; {active_thresh.get('closing_speed_moderate_px_s', 15.0):.1f} px/s] | "
+        f"Confirmation [Crit &ge; {active_thresh.get('confirmation_count_critical', 4)} frames]"
+    )
+    story.append(Paragraph(thresh_line, subtitle_style))
+    story.append(Spacer(1, 2 * mm))
+
+    factor_rows = [["Evaluation Factor", "Measured Value", "Active Threshold", "Status", "Investigation Context"]]
     for f in risk_eval.get("factor_breakdown", []):
         factor_rows.append([
             Paragraph(f"<b>{f.get('factor', '')}</b>", styles["BodyText"]),
+            Paragraph(str(f.get("measured_value", "N/A")), styles["BodyText"]),
+            Paragraph(str(f.get("threshold", "N/A")), styles["BodyText"]),
             Paragraph(f"<b>{f.get('display_status', '')}</b>", styles["BodyText"]),
             Paragraph(f.get("detail", ""), styles["BodyText"]),
         ])
 
-    factor_table = Table(factor_rows, colWidths=[48 * mm, 32 * mm, 94 * mm], repeatRows=1)
+    factor_table = Table(factor_rows, colWidths=[34 * mm, 24 * mm, 28 * mm, 22 * mm, 66 * mm], repeatRows=1)
     factor_table.setStyle(
         TableStyle(
             [
