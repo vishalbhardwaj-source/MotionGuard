@@ -1568,6 +1568,24 @@ with video_tab:
         except Exception:
             pass
 
+        # Quick Action Video Processing Bar (directly under active feed)
+        vp_col1, vp_col2 = st.columns([2, 1])
+        with vp_col1:
+            run_proc_video_top = st.button(
+                "🎬 Process Video & Run Incident Detection",
+                type="primary",
+                use_container_width=True,
+                key="btn_proc_video_top",
+                help="Process the active surveillance video: runs YOLO11n object detection, ByteTrack tracking, collision physics, and automated alert dispatch.",
+            )
+        with vp_col2:
+            run_track_video_top = st.button(
+                "📹 Process Video (Tracking Only)",
+                use_container_width=True,
+                key="btn_proc_video_top_track_only",
+                help="Process video with YOLO11n + ByteTrack to visualize detection bounding boxes and trajectories without alerting.",
+            )
+
         st.subheader("⚙️ Step 2: Emergency Alert Gateway Configuration")
         auto_col1, auto_col2 = st.columns([1, 1])
         with auto_col1:
@@ -1623,8 +1641,25 @@ with video_tab:
         }
         chosen_frame_skip = frame_skip_map[speed_mode]
 
-        # 1-Click Master Autonomous Pipeline Button
-        if st.button("🚀 Run Fully Autonomous Accident Pipeline (1-Click)", type="primary", use_container_width=True):
+        # Master Video Processing Execution Buttons
+        step3_col1, step3_col2 = st.columns([2, 1])
+        with step3_col1:
+            run_proc_video_step3 = st.button(
+                "🎬 Process Video & Run Autonomous Pipeline (1-Click)",
+                type="primary",
+                use_container_width=True,
+                key="btn_proc_step3",
+                help="Execute complete video processing: YOLO11n detection, ByteTrack tracking, collision physics, and alert dispatch.",
+            )
+        with step3_col2:
+            run_track_video_step3 = st.button(
+                "📹 Process Video (Tracking Only)",
+                use_container_width=True,
+                key="btn_track_step3",
+                help="Run neural detection and tracking only to inspect trajectories without emergency dispatches.",
+            )
+
+        if run_proc_video_top or run_proc_video_step3:
             with st.spinner("⚡ Running YOLO detection, tracking, collision detection & emergency escalation..."):
                 try:
                     output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
@@ -1708,9 +1743,11 @@ with video_tab:
                     st.error(f"Autonomous pipeline failed: {error}")
 
         # Step-by-Step Manual Tracking Button
-        with st.expander("🛠️ Step-by-Step Manual Tracking (No Auto-Dispatch)", expanded=False):
-            if st.button("🎯 Track Video & Generate Trajectories Only", key="btn_track_only_step"):
-                with st.spinner("Tracking vehicles in uploaded video..."):
+        with st.expander("🛠️ Advanced Tracking Settings & Manual Inspection", expanded=False):
+            btn_track_only_step = st.button("🎯 Track Video & Generate Trajectories Only", key="btn_track_only_step")
+
+        if run_track_video_top or run_track_video_step3 or btn_track_only_step:
+            with st.spinner("Tracking vehicles in uploaded video..."):
                     try:
                         output_path = OUTPUT_DIR / "uploaded_tracked.mp4"
                         trajectory_path = OUTPUT_DIR / "uploaded_trajectories.jsonl"
