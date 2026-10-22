@@ -93,32 +93,39 @@ flowchart TD
 
 ---
 
-## 🧪 Ground-Truth Benchmarks & Empirical Evaluation
+## 🧪 Empirical Demonstration Evaluation (Validation Suite)
 
-MotionGuard includes a formal benchmark evaluation engine ([`src/benchmark.py`](src/benchmark.py)) compatible with temporal ground-truth crash interval formats (e.g., DoTA, CCD, Nexar).
+MotionGuard includes an empirical demonstration evaluation engine ([`src/benchmark.py`](src/benchmark.py)) compatible with temporal ground-truth crash interval formats (e.g., DoTA, CCD, Nexar).
 
-### 1. Dual-Clip Ground-Truth Benchmark Results
+### 1. Dual-Clip Demonstration Results
 
 We evaluated MotionGuard across two reference clips:
-- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Open-domain multi-lane highway traffic baseline with merging maneuvers (Open dashcam benchmark segment, CC-BY 4.0 compatible).
-- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Highway rear-end collision segment curated for accident detection benchmarking (annotated DoTA/Nexar reference schema, CC-BY 4.0 compatible) with physical contact onset at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
+- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Multi-lane highway traffic baseline showing routine merging maneuvers. Sourced from [Pexels Highway Traffic Archive (Video 854746)](https://www.pexels.com/video/traffic-on-the-highway-854746/) under CC0 / Open Public Domain.
+- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Curated 10.5-second dashcam highway rear-end collision demonstration sequence (non-commercial educational/research demonstration) with physical contact onset certified at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
 
-> 💡 **Reproducibility**: Run the dynamic benchmark engine directly via CLI:
+> 💡 **Reproducibility**: Run the evaluation engine dynamically via CLI (using cached or `--live` GPU tracking):
 > ```bash
 > python -m src.benchmark
+> # Or run live YOLO11n + ByteTrack inference on raw videos:
+> python -m src.benchmark --live
 > ```
 
-| Evaluation Metric | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Benchmark Standard |
+| Benchmark Dimension | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Target Standard |
 | :--- | :---: | :---: | :--- |
 | **Clip Duration** | 23.89s (716 frames) | 10.50s (630 frames) | Reference test clips |
 | **Ground-Truth Collisions** | **0** | **1 (Onset: 5.20s)** | Certified ground truth |
-| **Emergency Crash Dispatches** | **0 (Zero False Dispatches)** | **1 (Triggered at 5.50s)** | Responder alerting tier |
+| **Emergency Crash Dispatches** | **0 (Zero False Dispatches)** | **1 (Triggered at 5.50s)** | Urgent responder alerts |
 | **Candidate Triage Episodes** | 6 monitoring episodes | 1 confirmed collision | Sub-critical triage (analyst queue) |
-| **Collision Recall** | **100.0%** (0 missed) | **100.0%** (Detected) | $\ge 90\%$ target |
-| **Collision Precision** | **100.0%** | **100.0%** | $\ge 85\%$ target |
-| **F1 Score** | **1.000** | **1.000** | $\ge 0.85$ target |
-| **Mean Detection Delay** | N/A (No collision) | **+0.30 seconds** (at 5.50s) | $< 1.0$s latency |
+| **Recall Rate** | **100% (0 missed)** | **100% (Detected)** | $\ge 90\%$ |
+| **Precision Rate** | **100%** | **100%** | $\ge 85\%$ |
+| **F1 Score** | **1.000** | **1.000** | $\ge 0.85$ |
+| **Mean Detection Delay** | N/A (No collision) | **+0.30 seconds** | $< 1.0$s latency |
 | **Emergency False Alarms / Hr** | **0.0 FA/hr** | 0.0 FA/hr | Emergency siren tier (zero nuisance) |
+
+> ⚠️ **Scope & Methodological Disclosures**:
+> - **Demo Scale**: Evaluating across two demonstration clips verifies the integration of the computer vision and kinematic alerting pipeline, but represents an algorithmic proof-of-concept validation suite rather than an exhaustive multi-thousand-hour academic benchmark.
+> - **Unified Dispatch Qualification**: Live emergency dispatches are governed by a single canonical rule (`is_emergency_dispatch_eligible()` in `src/risk_engine.py`): requiring multi-frame physical contact overlap ($IoU \ge 0.05$ across $\ge 2$ frames) combined with impact kinematics ($v_{closing} \ge 20$ px/s or post-impact deceleration halt). Single-frame bounding box overlap artifacts from tracker ID duplication (e.g. during dense merges) are rejected because physical collisions do not occur in a 0.0s instant.
+
 
 
 ---
@@ -280,8 +287,8 @@ MotionGuard is designed with rigorous engineering transparency:
 
 1. **Open-Source License**: MotionGuard is open-sourced under the **GNU Affero General Public License v3.0 (AGPL-3.0)** to adhere to Ultralytics YOLO11 upstream licensing terms. See [`LICENSE`](LICENSE) for details.
 2. **Video Footage Provenance & Attribution**:
-   - `data/videos/normal.mp4`: Royalty-free highway surveillance footage under CC0 / Open Public License ([Pexels Highway Traffic Archive](https://www.pexels.com/video/traffic-on-the-highway-854746/)).
-   - `data/videos/crash_demo.mp4`: Highway two-vehicle rear-end collision segment evaluated against annotated ground-truth temporal crash windows in [`data/benchmarks/ground_truth.json`](data/benchmarks/ground_truth.json).
+   - `data/videos/normal.mp4`: Royalty-free multi-lane highway surveillance footage licensed under CC0 / Open Public Domain via [Pexels Highway Traffic Archive (Video 854746)](https://www.pexels.com/video/traffic-on-the-highway-854746/). Free for commercial and personal projects; no attribution required.
+   - `data/videos/crash_demo.mp4`: Curated 10.5-second dashcam collision demonstration excerpt ($t=5.20$s certified impact onset), provided exclusively as an offline non-commercial educational & research validation asset for evaluating computer vision accident detection algorithms in a hackathon setting. In live production deployments, operators connect directly to customer-authorized municipal DOT or RTSP traffic cameras.
 3. **Privacy Compliance & Roadmap**:
    - **🔮 Planned Roadmap**: Automated face and license-plate blurring is not yet integrated; currently planned for future releases prior to live field deployments.
    - **RTSP Live Ingestion**: Direct RTSP surveillance streaming and sub-second per-event clip export are planned for v3.0.

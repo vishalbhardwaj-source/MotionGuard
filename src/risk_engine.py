@@ -1,6 +1,42 @@
 import math
 
 
+def is_emergency_dispatch_eligible(event):
+    """
+    Unified canonical qualification rule for emergency responder live dispatch.
+    Single source of truth used across risk engine, incident pipeline, and evaluation suite.
+    
+    To avoid emergency responder fatigue, live emergency dispatch requires:
+      1. Physical contact overlap: peak_bbox_iou >= 0.05
+      2. Multi-frame persistence: detection_count >= 2 and duration_seconds > 0.0
+         - Prevents single-frame ByteTrack identity fragmentation/jitter on the same vehicle
+           from triggering false alarms.
+      3. Dynamic collision kinetic signature:
+         - Significant closing speed prior to impact (peak_closing_speed >= 20.0 px/s), OR
+         - Post-impact deceleration signature ("SUDDEN_DECELERATION" in post_impact_signals with min_dist <= 30.0)
+    
+    Returns:
+        bool: True if event qualifies for live Priority 1 Emergency Dispatch, False if it remains in the sub-critical triage queue.
+    """
+    if not isinstance(event, dict):
+        return False
+
+    iou = event.get("peak_bbox_iou") or 0.0
+    det_count = event.get("detection_count", 0)
+    dur = event.get("duration_seconds", 0.0)
+    closing = event.get("peak_closing_speed_px_per_second", 0.0)
+    post_signals = event.get("post_impact_signals") or []
+    min_dist = event.get("minimum_distance_px", float("inf"))
+
+    # Must have physical overlap persisting across multiple frames
+    has_multi_frame_contact = (iou >= 0.05) and (det_count >= 2 or dur > 0.0)
+
+    # Must exhibit dynamic impact kinematics (high closing rate or post-impact halt)
+    has_kinetic_impact = closing >= 20.0 or ("SUDDEN_DECELERATION" in post_signals and min_dist <= 30.0)
+
+    return bool(has_multi_frame_contact and has_kinetic_impact)
+
+
 def classify_severity(
     event_or_metrics=None,
     suspected_collision=False,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.interaction_analysis import analyze_interactions
 from src.event_aggregation import aggregate_interaction_events
-from src.risk_engine import assess_event_risk
+from src.risk_engine import assess_event_risk, is_emergency_dispatch_eligible
 from src.reporting import create_incident_report
 from src.pdf_report import create_interaction_pdf
 from src.alert_dispatcher import format_emergency_sms, dispatch_sms, log_sms_dispatch
@@ -109,8 +109,7 @@ def run_automated_incident_pipeline(
             "dispatches": [],
         }
 
-    # Step 4: Identify critical incident candidates (High closing speed, close distance)
-    # Sort primarily by smallest minimum distance, then highest closing speed
+    # Step 4: Identify critical incident candidates using canonical emergency qualification rule
     sorted_events = sorted(
         events,
         key=lambda ev: (
@@ -119,23 +118,14 @@ def run_automated_incident_pipeline(
         ),
     )
 
-    # Select top critical candidates
-    critical_candidates = []
-    for ev in sorted_events:
-        dist = ev.get("minimum_distance_px", float("inf"))
-        closing = ev.get("peak_closing_speed_px_per_second", 0.0)
-        conf_count = ev.get("peak_confirmation_count", 0)
+    # Use unified canonical rule to identify verified collision events eligible for emergency siren/SMS dispatch
+    critical_candidates = [ev for ev in sorted_events if is_emergency_dispatch_eligible(ev)]
 
-        # Critical threshold: very close separation or high closing speed
-        if (dist <= 20.0 and closing >= 20.0) or (dist <= 15.0) or (conf_count >= 3 and dist <= 30.0):
-            critical_candidates.append(ev)
-
-    # If no event met strict threshold, take the closest observed interaction
+    # If no event met strict emergency dispatch threshold, prioritize highest-risk candidate for analyst triage logging
     if not critical_candidates and sorted_events:
-        critical_candidates = [sorted_events[0]]
-
-    # Limit auto-alerts to prevent flooding
-    candidates_to_process = critical_candidates[:max_auto_alerts]
+        candidates_to_process = [sorted_events[0]]
+    else:
+        candidates_to_process = critical_candidates[:max_auto_alerts]
 
     incidents_created = []
     dispatches = []
@@ -183,9 +173,10 @@ def run_automated_incident_pipeline(
         except Exception as pdf_err:
             print(f"Warning: PDF compilation warning for {event_id}: {pdf_err}")
 
-        # 4e. Automatically dispatch emergency notification (Telegram / SMS)
+        # 4e. Automatically dispatch emergency notification (Telegram / SMS) ONLY if event meets canonical emergency qualification
         dispatch_res = None
-        if auto_dispatch:
+        should_dispatch = auto_dispatch and is_emergency_dispatch_eligible(event)
+        if should_dispatch:
             sms_text = format_emergency_sms(
                 event,
                 camera_name=camera_name,
@@ -216,12 +207,13 @@ def run_automated_incident_pipeline(
             "evidence_image": valid_evidence,
             "pdf_path": str(pdf_path) if pdf_path.is_file() else None,
             "dispatch_result": dispatch_res,
+            "emergency_dispatch_eligible": should_dispatch,
         })
 
     return {
         "success": True,
         "total_events_detected": len(events),
-        "critical_incidents_count": len(incidents_created),
+        "critical_incidents_count": len(critical_candidates),
         "incidents_created": incidents_created,
         "dispatches": dispatches,
         "events": events,

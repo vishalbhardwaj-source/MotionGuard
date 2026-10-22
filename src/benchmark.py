@@ -131,13 +131,14 @@ def load_or_generate_trajectories(video_path, trajectory_path=None, force_live=F
 def extract_clip_detections(records):
     """
     Run the MotionGuard pipeline (kinematic interaction analysis + event aggregation)
-    on multi-vehicle trajectory records.
+    on multi-vehicle trajectory records using the canonical emergency dispatch rule.
     Returns:
       - candidate_events: all aggregated candidate interactions (analyst triage queue)
       - emergency_dispatches: critical events satisfying automated responder gateway criteria
     """
     from src.interaction_analysis import analyze_interactions
     from src.event_aggregation import aggregate_interaction_events
+    from src.risk_engine import is_emergency_dispatch_eligible
 
     if not records:
         return [], []
@@ -151,16 +152,8 @@ def extract_clip_detections(records):
     )
     events = aggregate_interaction_events(interactions)
 
-    # Classify automated emergency dispatch events:
-    # Requires confirmed physical contact overlap (IoU >= 0.05), multi-frame persistence, and closing dynamics
-    emergency_dispatches = []
-    for ev in events:
-        iou = ev.get("peak_bbox_iou") or 0.0
-        conf_count = ev.get("peak_confirmation_count", 0)
-        det_count = ev.get("detection_count", 0)
-        closing = ev.get("peak_closing_speed_px_per_second", 0.0)
-        if iou >= 0.05 and (conf_count >= 3 or det_count >= 2) and closing >= 20.0:
-            emergency_dispatches.append(ev)
+    # Use the single canonical qualification rule defined in src/risk_engine.py
+    emergency_dispatches = [ev for ev in events if is_emergency_dispatch_eligible(ev)]
 
     return events, emergency_dispatches
 
@@ -217,7 +210,7 @@ def run_standard_benchmark_suite(ground_truth_file=None, force_live_tracking=Fal
     crash_res["frame_count"] = crash_frames
     crash_res["candidate_count"] = len(crash_candidates)
     crash_res["detection_timestamp"] = (
-        crash_dispatches[0].get("evidence_timestamp_seconds", 5.50) if crash_dispatches else 5.50
+        crash_dispatches[0].get("evidence_timestamp_seconds") if crash_dispatches else None
     )
 
     return {
@@ -247,54 +240,85 @@ def format_benchmark_table(evaluation_results):
 def format_dual_benchmark_markdown(results=None):
     r"""
     Format side-by-side benchmark comparison dynamically into clean Markdown table.
+    Labels are constructed dynamically from numeric metrics without hardcoded success strings.
     """
     if results is None:
         results = run_standard_benchmark_suite()
 
+    if not isinstance(results, dict) or "safe_traffic" not in results or "collision_traffic" not in results:
+        raise ValueError("Invalid results dictionary supplied to format_dual_benchmark_markdown")
+
     s = results["safe_traffic"]
     c = results["collision_traffic"]
 
-    s_dur = s.get("video_duration_seconds", 23.89)
-    s_frames = s.get("frame_count", 716)
-    c_dur = c.get("video_duration_seconds", 10.50)
-    c_frames = c.get("frame_count", 630)
+    s_dur = float(s["video_duration_seconds"])
+    s_frames = int(s["frame_count"])
+    c_dur = float(c["video_duration_seconds"])
+    c_frames = int(c["frame_count"])
 
-    s_gt = s.get("total_ground_truth_accidents", 0)
-    c_gt = c.get("total_ground_truth_accidents", 1)
+    s_gt = int(s["total_ground_truth_accidents"])
+    c_gt = int(c["total_ground_truth_accidents"])
 
-    s_tp = s.get("true_positives", 0)
-    s_fp = s.get("false_positives", 0)
-    c_tp = c.get("true_positives", 1)
-    c_fp = c.get("false_positives", 0)
+    s_tp = int(s["true_positives"])
+    s_fp = int(s["false_positives"])
+    s_fn = int(s["false_negatives"])
 
-    s_cand = results.get("candidate_episodes_safe", s.get("candidate_count", 6))
-    c_cand = results.get("candidate_episodes_crash", c.get("candidate_count", 1))
+    c_tp = int(c["true_positives"])
+    c_fp = int(c["false_positives"])
+    c_fn = int(c["false_negatives"])
 
-    s_prec = s.get("precision", 1.0) * 100.0
-    c_prec = c.get("precision", 1.0) * 100.0
-    s_rec = s.get("recall", 1.0) * 100.0
-    c_rec = c.get("recall", 1.0) * 100.0
-    s_f1 = s.get("f1_score", 1.0)
-    c_f1 = c.get("f1_score", 1.0)
+    s_cand = int(results.get("candidate_episodes_safe", s.get("candidate_count", 0)))
+    c_cand = int(results.get("candidate_episodes_crash", c.get("candidate_count", 0)))
 
-    c_delay = c.get("mean_detection_delay_seconds", 0.30)
-    c_det_ts = c.get("detection_timestamp", 5.50)
+    s_prec = float(s["precision"]) * 100.0
+    c_prec = float(c["precision"]) * 100.0
+    s_rec = float(s["recall"]) * 100.0
+    c_rec = float(c["recall"]) * 100.0
+    s_f1 = float(s["f1_score"])
+    c_f1 = float(c["f1_score"])
 
-    s_fa_rate = s.get("false_alarms_per_hour", 0.0)
-    c_fa_rate = c.get("false_alarms_per_hour", 0.0)
+    s_fa_rate = float(s["false_alarms_per_hour"])
+    c_fa_rate = float(c["false_alarms_per_hour"])
 
-    return fr"""### 📊 Empirical Ground-Truth Benchmark Results
+    # Safe traffic dispatch label
+    s_disp = s_tp + s_fp
+    if s_disp == 0:
+        s_disp_label = "**0 (Zero False Dispatches)**"
+    else:
+        s_disp_label = f"**{s_disp} ({s_disp} False Dispatches)**"
+
+    # Collision dispatch label
+    c_det_ts = c.get("detection_timestamp")
+    if c_tp > 0:
+        ts_part = f" at {c_det_ts:.2f}s" if c_det_ts is not None else ""
+        c_disp_label = f"**{c_tp} (Triggered{ts_part})**"
+        c_recall_label = f"**{c_rec:.0f}% (Detected)**"
+        c_cand_label = f"{c_cand} confirmed collision"
+    else:
+        c_disp_label = "**0 (MISSED - No Emergency Dispatch)**"
+        c_recall_label = f"**{c_rec:.0f}% (MISSED)**"
+        c_cand_label = f"{c_cand} unconfirmed candidate"
+
+    s_recall_label = f"**{s_rec:.0f}% (0 missed)**" if s_fn == 0 else f"**{s_rec:.0f}% ({s_fn} missed)**"
+
+    c_delay = c.get("mean_detection_delay_seconds")
+    if c_tp > 0 and c_delay is not None:
+        c_delay_label = f"**+{c_delay:.2f} seconds**"
+    else:
+        c_delay_label = "N/A (Missed)"
+
+    return fr"""### 📊 Empirical Demonstration Evaluation Results
 
 | Benchmark Dimension | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Target Standard |
 | :--- | :---: | :---: | :--- |
-| **Clip Duration** | {s_dur:.2f}s ({s_frames} frames) | {c_dur:.2f}s ({c_frames} frames) | Reference datasets |
+| **Clip Duration** | {s_dur:.2f}s ({s_frames} frames) | {c_dur:.2f}s ({c_frames} frames) | Reference test clips |
 | **Ground-Truth Collisions** | {s_gt} | {c_gt} (Onset: 5.20s) | Labeled ground truth |
-| **Emergency Crash Dispatches** | **{s_tp + s_fp} (Zero False Dispatches)** | **{c_tp} (Triggered at {c_det_ts:.2f}s)** | Urgent responder alerts |
-| **Candidate Triage Episodes** | {s_cand} monitoring episodes | {c_cand} confirmed collision | Sub-critical triage (analyst queue) |
-| **Recall Rate** | **{s_rec:.0f}% (0 missed)** | **{c_rec:.0f}% (Detected)** | $\ge 90\%$ |
+| **Emergency Crash Dispatches** | {s_disp_label} | {c_disp_label} | Urgent responder alerts |
+| **Candidate Triage Episodes** | {s_cand} monitoring episodes | {c_cand_label} | Sub-critical triage (analyst queue) |
+| **Recall Rate** | {s_recall_label} | {c_recall_label} | $\ge 90\%$ |
 | **Precision Rate** | **{s_prec:.0f}%** | **{c_prec:.0f}%** | $\ge 85\%$ |
 | **F1 Score** | **{s_f1:.3f}** | **{c_f1:.3f}** | $\ge 0.85$ |
-| **Mean Detection Delay** | N/A (No collision) | **+{c_delay:.2f} seconds** | $< 1.0$s latency |
+| **Mean Detection Delay** | N/A (No collision) | {c_delay_label} | $< 1.0$s latency |
 | **Emergency False Alarms / Hr** | **{s_fa_rate:.1f} FA/hr** | {c_fa_rate:.1f} FA/hr | Emergency siren tier (zero nuisance) |
 """
 
@@ -399,6 +423,7 @@ if __name__ == "__main__":
             sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
+
     parser = argparse.ArgumentParser(description="MotionGuard Benchmark Evaluation Engine")
     parser.add_argument(
         "--ground-truth",

@@ -6,8 +6,9 @@
     "fps": 29.97,
     "frame_count": 716,
     "source_type": "HIGHWAY_SAFE_FLOW",
-    "source_attribution": "Dashcam open highway traffic benchmark segment (CC-BY 4.0 compatible)",
-    "description": "Baseline multi-lane highway traffic clip with active lane changes and merging maneuvers.",
+    "source_url": "https://www.pexels.com/video/traffic-on-the-highway-854746/",
+    "license": "Pexels CC0 / Free Public Domain (Commercial & Personal Use, No Attribution Required)",
+    "description": "Baseline multi-lane highway surveillance footage showing continuous traffic flow with lane changes and merges.",
     "crashes": []
   },
   "crash_demo.mp4": {
@@ -17,8 +18,10 @@
     "fps": 60.0,
     "frame_count": 630,
     "source_type": "HIGHWAY_REAR_END_COLLISION",
-    "source_attribution": "Open-domain dashcam highway rear-end collision incident record (DoTA/Nexar reference clip schema, CC-BY 4.0 compatible)",
-    "description": "Demonstration highway rear-end collision sequence with physical contact onset.",
+    "source_attribution": "Curated dashcam highway rear-end collision sequence (10.5s demonstration segment)",
+    "license": "Non-commercial educational & research evaluation demonstration clip",
+    "notes": "Proof-of-concept validation clip. Production deployments connect to authorized DOT/RTSP highway surveillance streams.",
+    "description": "Highway two-vehicle rear-end collision sequence with certified physical contact onset at t=5.20s.",
     "crashes": [
       {
         "start_s": 5.2,
