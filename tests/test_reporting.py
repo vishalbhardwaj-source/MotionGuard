@@ -8,7 +8,10 @@ from src.reporting import create_incident_report
 
 def test_create_incident_report(tmp_path, monkeypatch):
     import src.reporting
+    import src.db
     monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(src.reporting, "EVIDENCE_DIR", tmp_path / "evidence")
+    monkeypatch.setattr(src.db, "DEFAULT_DB_PATH", tmp_path / "test_motionguard.db")
 
     risk = assess_risk(
         speed_kmh=80,

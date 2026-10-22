@@ -3,13 +3,12 @@ from pathlib import Path
 from src.video_processor import create_event_clip, inspect_video
 
 
-def test_create_event_clip_normal_video():
+def test_create_event_clip_normal_video(tmp_path):
     video_path = Path("data/videos/normal.mp4")
     if not video_path.is_file():
         pytest.skip("Test video normal.mp4 not found.")
 
-    output_clip = Path("outputs/test_clips/test_clip_3s.mp4")
-    output_clip.unlink(missing_ok=True)
+    output_clip = tmp_path / "test_clip_3s.mp4"
 
     result = create_event_clip(
         video_path=video_path,

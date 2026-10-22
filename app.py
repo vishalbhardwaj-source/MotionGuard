@@ -3,6 +3,7 @@ import json
 import math
 import os
 import subprocess
+import textwrap
 from pathlib import Path
 
 import streamlit as st
@@ -663,20 +664,41 @@ with st.sidebar:
 
     st.markdown("##### 🧹 Incident Logs & State")
     st.caption("Wipe recorded incidents and reset dashboard to clean state:")
-    if st.button("🗑️ Clear Incident Logs & Reset", use_container_width=True, help="Wipe all recorded incident logs, dispatches, and reset session state."):
+    if st.button("🗑️ Clear Incident Logs & Reset", use_container_width=True, help="Wipe all recorded incident logs, dispatches, dossiers, and reset session state."):
         for log_p in [INCIDENT_LOG, SMS_LOG, NOTIFICATION_LOG, REVIEW_LOG]:
             if log_p.exists():
                 log_p.write_text("", encoding="utf-8")
-        db_file = OUTPUT_DIR / "motionguard.db"
-        if db_file.exists():
-            try:
-                db_file.unlink()
-            except Exception:
-                pass
+        try:
+            from src.db import reset_db
+            reset_db(OUTPUT_DIR / "motionguard.db")
+        except Exception:
+            pass
+        dossiers_dir = OUTPUT_DIR / "incident_dossiers"
+        if dossiers_dir.exists():
+            for p in dossiers_dir.glob("*.pdf"):
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
+        ev_dir = OUTPUT_DIR / "evidence"
+        if ev_dir.exists():
+            for p in ev_dir.glob("*"):
+                if p.name != "test_frame.png" and p.is_file():
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+        clips_dir = OUTPUT_DIR / "event_clips"
+        if clips_dir.exists():
+            for p in clips_dir.glob("*.mp4"):
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
         st.session_state.clear()
         if hasattr(st, "cache_data"):
             st.cache_data.clear()
-        st.toast("Dashboard logs and active session reset successfully!", icon="🧹")
+        st.toast("All previous incident reports, dossiers, and session state reset!", icon="🧹")
         st.rerun()
 
     st.divider()
@@ -711,60 +733,54 @@ critical_count = sum(1 for r in reports if r.get("threat_level") == "CRITICAL")
 recent_dispatches = read_sms_log()
 dispatch_count = len(recent_dispatches)
 
-st.markdown(
-    """
-    <div class="hero-banner">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
-            <div>
-                <div class="hero-badge">
-                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span>
-                    Autonomous Road Safety & Incident Investigation
-                </div>
-                <h1 class="hero-title">MotionGuard</h1>
-                <p class="hero-sub">Edge AI vision for real-time trajectory tracking, explainable multi-factor collision triage, and instant authority dispatch.</p>
+st.html("""
+<div class="hero-banner">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+        <div>
+            <div class="hero-badge">
+                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span>
+                Autonomous Road Safety &amp; Incident Investigation
             </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-                <span style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); color: #4ade80; padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;">
-                    ● LIVE SYSTEM OPERATIONAL
-                </span>
-                <span style="font-size: 0.74rem; color: #64748b; font-family: 'JetBrains Mono', monospace;">
-                    CUDA FP16 · SUB-20MS INFERENCE
-                </span>
-            </div>
+            <h1 class="hero-title">MotionGuard</h1>
+            <p class="hero-sub">Edge AI vision for real-time trajectory tracking, explainable multi-factor collision triage, and instant authority dispatch.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <span style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); color: #4ade80; padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;">
+                ● LIVE SYSTEM OPERATIONAL
+            </span>
+            <span style="font-size: 0.74rem; color: #64748b; font-family: 'JetBrains Mono', monospace;">
+                CUDA FP16 · SUB-20MS INFERENCE
+            </span>
         </div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+</div>
+""")
 
 # Custom Glassmorphic KPI Cards
-st.markdown(
-    f"""
-    <div class="kpi-grid">
-        <div class="kpi-card" style="border-left: 3px solid #38bdf8;">
-            <div class="kpi-label">📋 Logged Incidents</div>
-            <div class="kpi-value">{len(reports)}</div>
-            <div class="kpi-caption">Incident investigation audit records</div>
-        </div>
-        <div class="kpi-card" style="border-left: 3px solid #ef4444;">
-            <div class="kpi-label" style="color: #f87171;">🚨 Critical Collisions</div>
-            <div class="kpi-value" style="color: #f87171;">{critical_count}</div>
-            <div class="kpi-caption">Score ≥ 80 / 100 escalated</div>
-        </div>
-        <div class="kpi-card" style="border-left: 3px solid #10b981;">
-            <div class="kpi-label" style="color: #34d399;">⚡ Neural Inference</div>
-            <div class="kpi-value">~18<span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">ms</span></div>
-            <div class="kpi-caption">YOLO11n + ByteTrack CUDA</div>
-        </div>
-        <div class="kpi-card" style="border-left: 3px solid #a855f7;">
-            <div class="kpi-label" style="color: #c084fc;">📡 Live Dispatches</div>
-            <div class="kpi-value" style="color: #c084fc;">{dispatch_count}</div>
-            <div class="kpi-caption">Telegram / SMS alerts sent</div>
-        </div>
+st.html(f"""
+<div class="kpi-grid">
+    <div class="kpi-card" style="border-left: 3px solid #38bdf8;">
+        <div class="kpi-label">📋 Logged Incidents</div>
+        <div class="kpi-value">{len(reports)}</div>
+        <div class="kpi-caption">Incident investigation audit records</div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    <div class="kpi-card" style="border-left: 3px solid #ef4444;">
+        <div class="kpi-label" style="color: #f87171;">🚨 Critical Collisions</div>
+        <div class="kpi-value" style="color: #f87171;">{critical_count}</div>
+        <div class="kpi-caption">Score ≥ 80 / 100 escalated</div>
+    </div>
+    <div class="kpi-card" style="border-left: 3px solid #10b981;">
+        <div class="kpi-label" style="color: #34d399;">⚡ Neural Inference</div>
+        <div class="kpi-value">~18<span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">ms</span></div>
+        <div class="kpi-caption">YOLO11n + ByteTrack CUDA</div>
+    </div>
+    <div class="kpi-card" style="border-left: 3px solid #a855f7;">
+        <div class="kpi-label" style="color: #c084fc;">📡 Live Dispatches</div>
+        <div class="kpi-value" style="color: #c084fc;">{dispatch_count}</div>
+        <div class="kpi-caption">Telegram / SMS alerts sent</div>
+    </div>
+</div>
+""")
 
 pipeline_run = st.session_state.get("latest_pipeline_run")
 if pipeline_run and pipeline_run.get("incidents_created"):
@@ -1268,15 +1284,15 @@ with scenario_tab:
                         )
                         chosen_mode = "TELEGRAM" if "Telegram" in tab3_gw else ("TWILIO" if "Twilio" in tab3_gw else "SIMULATOR")
                         sms_res = dispatch_sms(
-                        phone_number=alert_phone,
-                        message_text=sms_text,
-                        camera_id="CAM-SIM-01",
-                        threat_score=result.get("threat_score", 0),
-                        threat_level=result.get("threat_level", "LOW"),
-                        cooldown_seconds=60,
-                        gateway_mode=chosen_mode,
-                        dossier_link=dossier_link,
-                    )
+                            phone_number=alert_phone,
+                            message_text=sms_text,
+                            camera_id="CAM-SIM-01",
+                            threat_score=result.get("threat_score", 0),
+                            threat_level=result.get("threat_level", "LOW"),
+                            cooldown_seconds=0,
+                            gateway_mode=chosen_mode,
+                            dossier_link=dossier_link,
+                        )
                         log_sms_dispatch(sms_res)
                         st.success(f"📱 Emergency Alert Dispatched to {sms_res['recipient']} ({sms_res['channel']})!")
                     except Exception as e:
@@ -1576,42 +1592,52 @@ with video_tab:
     st.subheader("📹 Step 1: Select or Upload Surveillance Video")
     st.caption("Upload your own traffic surveillance video, or quickly load pre-verified benchmark video clips for instant judging:")
 
-    bench_col1, bench_col2 = st.columns(2)
+    def _load_video_source(vpath, vname, label_icon="📹"):
+        p = Path(vpath)
+        if p.is_file():
+            st.session_state["video_source"] = "sample"
+            st.session_state["active_sample_video"] = str(p)
+            st.session_state["active_uploaded_name"] = vname
+            st.session_state["uploaded_video_path"] = str(p)
+            st.session_state.pop("last_uploaded_name", None)
+            st.session_state.pop("latest_pipeline_run", None)
+            st.session_state.pop("processed_video", None)
+            st.session_state.pop("tracking_result", None)
+            st.session_state.pop("interaction_events", None)
+            st.session_state.pop("trajectory_records", None)
+            st.session_state.pop("trajectory_summary", None)
+            st.toast(f"Loaded {vname}!", icon=label_icon)
+            st.rerun()
+
+    bench_col1, bench_col2, bench_col3, bench_col4 = st.columns(4)
     with bench_col1:
-        if st.button("🚨 Quick-Load Highway Crash Demo (crash_demo.mp4)", use_container_width=True, help="Load certified 5.5s collision demo footage from data/videos/"):
-            sample_crash = Path("data/videos/crash_demo.mp4")
-            if sample_crash.is_file():
-                st.session_state["video_source"] = "sample"
-                st.session_state["active_sample_video"] = str(sample_crash)
-                st.session_state["active_uploaded_name"] = "crash_demo.mp4"
-                st.session_state["uploaded_video_path"] = str(sample_crash)
-                st.session_state.pop("last_uploaded_name", None)
-                st.session_state.pop("latest_pipeline_run", None)
-                st.session_state.pop("processed_video", None)
-                st.session_state.pop("tracking_result", None)
-                st.session_state.pop("interaction_events", None)
-                st.session_state.pop("trajectory_records", None)
-                st.session_state.pop("trajectory_summary", None)
-                st.toast("Loaded Benchmark Collision Clip!", icon="🚨")
-                st.rerun()
+        if st.button("🚨 Crash Demo\n`crash_demo.mp4`", use_container_width=True, help="Load certified 5.5s collision demo footage"):
+            _load_video_source("data/videos/crash_demo.mp4", "crash_demo.mp4", "🚨")
 
     with bench_col2:
-        if st.button("🛣️ Quick-Load Normal Flow Baseline (normal.mp4)", use_container_width=True, help="Load normal flowing traffic baseline from data/videos/"):
-            sample_normal = Path("data/videos/normal.mp4")
-            if sample_normal.is_file():
-                st.session_state["video_source"] = "sample"
-                st.session_state["active_sample_video"] = str(sample_normal)
-                st.session_state["active_uploaded_name"] = "normal.mp4"
-                st.session_state["uploaded_video_path"] = str(sample_normal)
-                st.session_state.pop("last_uploaded_name", None)
-                st.session_state.pop("latest_pipeline_run", None)
-                st.session_state.pop("processed_video", None)
-                st.session_state.pop("tracking_result", None)
-                st.session_state.pop("interaction_events", None)
-                st.session_state.pop("trajectory_records", None)
-                st.session_state.pop("trajectory_summary", None)
-                st.toast("Loaded Normal Highway Baseline!", icon="🛣️")
-                st.rerun()
+        if st.button("🛣️ Normal Flow\n`normal.mp4`", use_container_width=True, help="Load normal flowing traffic baseline"):
+            _load_video_source("data/videos/normal.mp4", "normal.mp4", "🛣️")
+
+    with bench_col3:
+        if st.button("📹 CCTV Feed 1\n`CCTV1.mp4`", use_container_width=True, help="Load 1080p surveillance CCTV 1 footage"):
+            _load_video_source("data/videos/CCTV1.mp4", "CCTV1.mp4", "📹")
+
+    with bench_col4:
+        if st.button("📹 CCTV Feed 2\n`CCTV2.mp4`", use_container_width=True, help="Load 1080p surveillance CCTV 2 footage"):
+            _load_video_source("data/videos/CCTV2.mp4", "CCTV2.mp4", "📹")
+
+    # Dynamic repository selector for any new videos added to data/videos/
+    videos_dir = Path("data/videos")
+    available_vids = sorted([p for p in videos_dir.glob("*") if p.suffix.lower() in (".mp4", ".avi", ".mov", ".mkv")]) if videos_dir.is_dir() else []
+    if available_vids:
+        vid_names = ["-- Select from surveillance library --"] + [p.name for p in available_vids]
+        curr_active = st.session_state.get("active_uploaded_name")
+        curr_idx = vid_names.index(curr_active) if curr_active in vid_names else 0
+        sel_vid = st.selectbox("Or choose directly from local surveillance footage repository:", vid_names, index=curr_idx, key="sb_library_selector")
+        if sel_vid != "-- Select from surveillance library --" and sel_vid != curr_active:
+            matched_path = next((p for p in available_vids if p.name == sel_vid), None)
+            if matched_path:
+                _load_video_source(str(matched_path), matched_path.name, "📹")
 
     uploaded_video = st.file_uploader(
         "Or choose a custom surveillance video file (.mp4, .avi, .mov, .mkv)",
@@ -1684,7 +1710,14 @@ with video_tab:
             pass
 
         # Quick Action Video Processing Bar (directly under active feed)
-        is_bench = active_feed_name in ("crash_demo.mp4", "normal.mp4")
+        bench_map = {
+            "crash_demo.mp4": Path("data/benchmarks/crash_trajectories.jsonl"),
+            "normal.mp4": Path("data/benchmarks/normal_trajectories.jsonl"),
+            "CCTV1.mp4": Path("data/benchmarks/cctv1_trajectories.jsonl"),
+            "CCTV2.mp4": Path("data/benchmarks/cctv2_trajectories.jsonl"),
+        }
+        bench_file_cand = bench_map.get(active_feed_name)
+        is_bench = bool(bench_file_cand and bench_file_cand.is_file())
         if is_bench:
             vp_col1, vp_col2, vp_col3 = st.columns([2, 1.8, 1.2])
         else:
@@ -1778,10 +1811,10 @@ with video_tab:
                 prox_threshold = st.slider(
                     "Vehicle Proximity Threshold (px)",
                     min_value=40,
-                    max_value=250,
-                    value=100,
+                    max_value=350,
+                    value=200,
                     step=10,
-                    help="Maximum pixel distance between vehicle bounding box centers to qualify for interaction analysis.",
+                    help="Pixel distance or bounding box proximity threshold between vehicles to qualify for interaction analysis.",
                 )
             with kin_col2:
                 min_consec = st.slider(
@@ -1843,7 +1876,7 @@ with video_tab:
         should_run_instant = (run_instant_demo or run_instant_demo_step3) if is_bench else False
 
         if should_run_instant:
-            bench_file = Path("data/benchmarks/crash_trajectories.jsonl") if active_feed_name == "crash_demo.mp4" else Path("data/benchmarks/normal_trajectories.jsonl")
+            bench_file = bench_map.get(active_feed_name, Path("data/benchmarks/crash_trajectories.jsonl"))
             if bench_file.is_file():
                 with st.spinner("⚡ Running Instant Benchmark Evaluation..."):
                     try:
@@ -1893,7 +1926,7 @@ with video_tab:
                         )
                         st.session_state["latest_pipeline_run"] = pipe_res
                         st.session_state["interaction_events"] = pipe_res.get("events", [])
-                        if pipe_res.get("critical_incidents_count", 0) > 0:
+                        if pipe_res.get("critical_incidents_count", 0) > 0 or len(pipe_res.get("dispatches", [])) > 0:
                             st.balloons()
                             st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
                         else:
@@ -2014,7 +2047,7 @@ with video_tab:
                 progress_bar.progress(1.0)
                 st.session_state["latest_pipeline_run"] = pipe_res
                 st.session_state["interaction_events"] = pipe_res.get("events", [])
-                if pipe_res.get("critical_incidents_count", 0) > 0:
+                if pipe_res.get("critical_incidents_count", 0) > 0 or len(pipe_res.get("dispatches", [])) > 0:
                     st.balloons()
                     st.toast("🚨 Autonomous Emergency Alert Dispatched to your phone!", icon="🚨")
                 else:
@@ -2647,65 +2680,27 @@ with dossier_tab:
 
 
         st.divider()
-        st.markdown("### Prepare notification")
-
-
-        authority = st.selectbox(
-            "Intended recipient",
-            [
-                "Traffic Police (demo)",
-                "Road Safety Department (demo)",
-                "Campus Security (demo)",
-                "Other Authority (demo)",
-            ],
-        )
-
-        st.warning(
-            "Demo mode: submitting creates a local record only. "
-            "It does not send an email, call an API, or contact authorities."
-        )
-
-        already_submitted = any(
-            item.get("event_id") == event_id
-            and item.get("status") == "SUBMITTED_SIMULATED"
-            for item in notifications
-        )
-
-        if already_submitted:
-            st.info(
-                "A simulated notification for this event already exists. "
-                "Check the submission history below."
-            )
-
-        confirm_submission = st.checkbox(
-            f"I reviewed the evidence for {event_id} and want to record "
-            "a simulated notification.",
-            key=f"confirm_notification_{event_id}",
-        )
-
-        if st.button(
-            "Submit simulated notification",
-            key=f"submit_notification_{event_id}",
-            disabled=already_submitted or not confirm_submission,
-        ):
-            record_notification(selected_event, authority)
-            st.success(
-                f"Simulated submission recorded for {event_id}. "
-                "No real authority was contacted."
-            )
-            st.rerun()
-
-        st.divider()
-        st.markdown("### 📱 Emergency Text / SMS Dispatcher")
+        st.markdown("### 🚨 Dispatch Emergency Text Alert & Authority Notification")
         st.caption(
-            "Immediately dispatch high-priority accident / interaction text alerts directly to concerned authorities."
+            "Immediately dispatch verified incident evidence and emergency text alerts to first responders and traffic authorities."
         )
 
         sms_c1, sms_c2 = st.columns([1, 1])
         with sms_c1:
+            authority = st.selectbox(
+                "Intended Recipient / Authority",
+                [
+                    "Traffic Police Dispatch",
+                    "Emergency Medical Services (EMS / Ambulance)",
+                    "Highway Incident Patrol & Tow Units",
+                    "Road Safety Department",
+                    "Campus Security & Safety",
+                ],
+                key=f"auth_select_{event_id}",
+            )
             dest_phone = st.text_input(
                 "Concerned Authority Mobile Number",
-                value="+1 (555) 019-9000",
+                value=st.session_state.get("auto_phone_input", "+1 (555) 019-9000"),
                 help="Enter phone number with country code (e.g. +91... or +1...)",
                 key=f"phone_{event_id}",
             )
@@ -2714,13 +2709,15 @@ with dossier_tab:
                 value="Highway Junction Cam #04",
                 key=f"cam_{event_id}",
             )
+            has_tg_env = bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))
             sms_gateway = st.radio(
-                "SMS Gateway Provider",
+                "SMS / Text Gateway Provider",
                 [
-                    "Local Emergency Carrier Simulator (Instant zero-setup demo)",
+                    "Telegram Instant Alert (Push directly to your phone)",
                     "Twilio SMS Gateway (Real Text Message to your phone)",
-                    "Telegram Instant Alert (Free push to your phone)",
+                    "Local Emergency Carrier Simulator (Zero-setup carrier broadcast)",
                 ],
+                index=0 if has_tg_env else 2,
                 key=f"gateway_{event_id}",
             )
 
@@ -2732,16 +2729,16 @@ with dossier_tab:
 
             if "Twilio" in sms_gateway:
                 st.info("Enter Twilio credentials (or define TWILIO_ACCOUNT_SID in environment):")
-                twilio_sid = st.text_input("Twilio Account SID", type="password", key=f"tw_sid_{event_id}")
-                twilio_token = st.text_input("Twilio Auth Token", type="password", key=f"tw_tok_{event_id}")
-                twilio_from = st.text_input("Twilio Sender Number", placeholder="+1...", key=f"tw_from_{event_id}")
+                twilio_sid = st.text_input("Twilio Account SID", value=os.getenv("TWILIO_ACCOUNT_SID", ""), type="password", key=f"tw_sid_{event_id}")
+                twilio_token = st.text_input("Twilio Auth Token", value=os.getenv("TWILIO_AUTH_TOKEN", ""), type="password", key=f"tw_tok_{event_id}")
+                twilio_from = st.text_input("Twilio Sender Number", value=os.getenv("TWILIO_PHONE_NUMBER", ""), placeholder="+1...", key=f"tw_from_{event_id}")
             elif "Telegram" in sms_gateway:
                 _env_tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
                 _env_tg_chat = os.getenv("TELEGRAM_CHAT_ID", "")
                 if _env_tg_token and _env_tg_chat:
-                    st.success("✅ Telegram credentials loaded from environment variables — ready to dispatch!")
+                    st.success("✅ Telegram credentials active from environment — ready to dispatch!")
                 else:
-                    st.info("Enter Telegram Bot credentials (or set TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID env vars):")
+                    st.info("Enter Telegram Bot credentials (or set TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID):")
                 tg_token = st.text_input(
                     "Telegram Bot Token",
                     value=_env_tg_token,
@@ -2786,45 +2783,31 @@ with dossier_tab:
                 unsafe_allow_html=True,
             )
 
-        is_external_gw = "Twilio" in sms_gateway or "Telegram" in sms_gateway
-        confirm_live_dispatch = False
-        if is_external_gw:
-            confirm_live_dispatch = st.checkbox(
-                "⚠️ **Live Broadcast Confirmation:** I confirm authorization to transmit a live external emergency alert to the designated contact.",
-                value=False,
-                key=f"confirm_live_broadcast_{event_id}",
-            )
-
-        dispatch_locked = is_external_gw and not confirm_live_dispatch
-
         if st.button(
             "🚨 Dispatch Emergency Text Alert Now",
             type="primary",
             key=f"btn_send_sms_{event_id}",
-            disabled=dispatch_locked,
         ):
             try:
                 selected_mode = "TWILIO" if "Twilio" in sms_gateway else ("TELEGRAM" if "Telegram" in sms_gateway else "SIMULATOR")
-                if selected_mode != "SIMULATOR" and not confirm_live_dispatch:
-                    st.error("Confirmation required for live external dispatch.")
-                else:
-                    dispatch_res = dispatch_sms(
-                        phone_number=dest_phone,
-                        message_text=sms_body,
-                        twilio_sid=twilio_sid,
-                        twilio_token=twilio_token,
-                        twilio_from=twilio_from,
-                        telegram_token=tg_token,
-                        telegram_chat_id=tg_chat,
-                        photo_path=evidence_img_path,
-                        camera_id="CAM-01",
-                        threat_score=dossier_risk.get("threat_score"),
-                        threat_level=dossier_risk.get("threat_level"),
-                        cooldown_seconds=60,
-                        gateway_mode=selected_mode,
-                        dossier_link=dossier_link,
-                    )
+                dispatch_res = dispatch_sms(
+                    phone_number=dest_phone,
+                    message_text=sms_body,
+                    twilio_sid=twilio_sid,
+                    twilio_token=twilio_token,
+                    twilio_from=twilio_from,
+                    telegram_token=tg_token,
+                    telegram_chat_id=tg_chat,
+                    photo_path=evidence_img_path,
+                    camera_id="CAM-01",
+                    threat_score=dossier_risk.get("threat_score"),
+                    threat_level=dossier_risk.get("threat_level"),
+                    cooldown_seconds=0,
+                    gateway_mode=selected_mode,
+                    dossier_link=dossier_link,
+                )
                 log_sms_dispatch(dispatch_res)
+                record_notification(selected_event, authority, submitted_by=f"Operator ({dispatch_res.get('channel', 'DISPATCH')})")
                 if dispatch_res.get("success"):
                     st.success(
                         f"✅ Text Alert Dispatched to {dispatch_res['recipient']} via {dispatch_res['channel']}! "

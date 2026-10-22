@@ -8,11 +8,15 @@ def test_automated_pipeline_collision_dispatch(tmp_path, monkeypatch):
     import src.reporting
     import src.alert_dispatcher
     import src.incident_pipeline
+    import src.db
 
     monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(src.reporting, "EVIDENCE_DIR", tmp_path / "evidence")
+    monkeypatch.setattr(src.incident_pipeline, "EVIDENCE_DIR", tmp_path / "evidence")
     monkeypatch.setattr(src.alert_dispatcher, "DISPATCH_LOG_PATH", tmp_path / "sms_dispatches.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "INTERACTION_EVENTS_PATH", tmp_path / "events.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "DOSSIERS_DIR", tmp_path / "incident_dossiers")
+    monkeypatch.setattr(src.db, "DEFAULT_DB_PATH", tmp_path / "test_motionguard.db")
 
     video_path = Path("data/videos/crash_demo.mp4")
     if not video_path.is_file():
@@ -52,11 +56,15 @@ def test_automated_pipeline_safe_traffic_zero_false_dispatches(tmp_path, monkeyp
     import src.reporting
     import src.alert_dispatcher
     import src.incident_pipeline
+    import src.db
 
     monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(src.reporting, "EVIDENCE_DIR", tmp_path / "evidence")
+    monkeypatch.setattr(src.incident_pipeline, "EVIDENCE_DIR", tmp_path / "evidence")
     monkeypatch.setattr(src.alert_dispatcher, "DISPATCH_LOG_PATH", tmp_path / "sms_dispatches.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "INTERACTION_EVENTS_PATH", tmp_path / "events.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "DOSSIERS_DIR", tmp_path / "incident_dossiers")
+    monkeypatch.setattr(src.db, "DEFAULT_DB_PATH", tmp_path / "test_motionguard.db")
 
     video_path = Path("data/videos/normal.mp4")
     if not video_path.is_file():

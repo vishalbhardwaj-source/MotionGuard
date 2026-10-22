@@ -193,3 +193,23 @@ def save_dispatch_to_db(dispatch_res, db_path=None):
             datetime.now(timezone.utc).isoformat(),
         ))
     conn.close()
+
+
+def reset_db(db_path=None):
+    """Safely clear all incidents and dispatches from the database and vacuum."""
+    path = Path(db_path) if db_path else DEFAULT_DB_PATH
+    if not path.exists():
+        init_db(path)
+        return
+    try:
+        conn = get_connection(path)
+        with conn:
+            conn.execute("DELETE FROM incidents;")
+            conn.execute("DELETE FROM dispatches;")
+        conn.close()
+        vac_conn = sqlite3.connect(str(path), isolation_level=None)
+        vac_conn.execute("VACUUM;")
+        vac_conn.close()
+    except Exception:
+        pass
+    init_db(path)

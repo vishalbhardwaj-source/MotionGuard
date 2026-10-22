@@ -10,7 +10,7 @@
 [![YOLO11](https://img.shields.io/badge/Vision-Ultralytics%20YOLO11n-00FFFF.svg)](https://github.com/ultralytics/ultralytics)
 [![ByteTrack](https://img.shields.io/badge/Tracking-ByteTrack%20%7C%20BoT--SORT-brightgreen.svg)](https://github.com/ifzhang/ByteTrack)
 [![ReportLab](https://img.shields.io/badge/Reports-ReportLab%20PDF-red.svg)](https://www.reportlab.com/)
-[![Tests](https://img.shields.io/badge/Tests-77%20Passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-82%20Passing-success.svg)](tests/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-orange.svg)](LICENSE)
 
 ---
@@ -156,17 +156,32 @@ On a 24-second clip with no collisions, 3 candidate episodes extrapolates to ~45
 
 ---
 
-## 🧭 Evaluator & Judge Walkthrough (5 Dashboard Tabs)
+## 🧭 Evaluator & Judge Walkthrough (6 Dashboard Tabs)
 
 When evaluating the live application at `http://localhost:8501`, follow this sequence:
 
 | Tab | Name | Recommended Action |
 |:---:|:---|:---|
-| **1** | **📹 Video Analysis** | Load either **"🚨 Highway Crash"** or **"🛣️ Normal Traffic"** using the sidebar presets. Click **"Track Full Video with Trajectory Trails"** or view the pre-rendered H.264 video with real-time motion trails. |
+| **1** | **📹 Video Analysis** | Click **"🚨 Quick-Load Highway Crash Demo (crash_demo.mp4)"**, then click **"🎬 Process Video & Run Incident Detection"** (or **"⚡ Instant Benchmark Demo (< 1s)"**). Watch sub-second accident detection trigger instant Telegram/SMS dispatch, incident logging, and PDF generation. Compare with **"🛣️ Normal Flow Baseline"** to verify **zero false alarms**. |
 | **2** | **🔍 Interaction Investigation** | Select any auto-detected event. Inspect the visual snapshot taken at the exact instant of closest approach, view separation distance, TTC ($\tau$), and closing speed metrics. |
 | **3** | **⚖️ Risk Scenario** | Adjust simulated vehicle speed and collision toggle. Observe how the explainable risk engine scores threat level and automatically prepares an emergency dispatch. |
 | **4** | **🚨 Incident Command** | Triage and manage logged incident cases stored in SQLite. Transition status between `NEW`, `UNDER REVIEW`, and `RESOLVED` with persistent audit logs. |
 | **5** | **📋 Review & Dispatch Dossier** | Review explainable risk vectors, test simulated or live emergency alerts with safety confirmation, and click **"📄 Download Investigation Support Dossier (PDF)"** to export the incident report. |
+| **6** | **⚙️ Calibration & Matrix** | Interactively tune surrogate safety thresholds (IoU, Optical Scale TTC, Distance Normalization) and visualize real-time confusion matrices ($2 \times 2$), precision-recall trade-offs, and false-alarm rates. |
+
+---
+
+### ⏱️ 60-Second Hackathon Live Demo Sequence
+1. **Launch App**: Double-click `run_dashboard.bat` (or run `streamlit run app.py`).
+2. **Enter Workstation**: On the welcome hero screen, click **"🚀 Enter Live Operations Workstation"**.
+3. **Trigger Crash Demo**:
+   - In **Tab 1 (Video Analysis)**, click **"🚨 Quick-Load Highway Crash Demo"**.
+   - Click **"🎬 Process Video & Run Incident Detection"** (or **"⚡ Instant Benchmark Demo"**).
+   - Observe real-time accident detection at $t=5.50$s, celebration balloons, and live dispatch broadcast.
+4. **Inspect Incident**:
+   - Switch to **Tab 4 (Incident Command)** to inspect the logged incident in the SQLite database.
+   - Switch to **Tab 5 (Review & Dispatch Dossier)** to review the forensic breakdown and download the PDF dossier.
+5. **Reset Anytime**: Click **"🗑️ Clear Incident Logs & Reset"** in the sidebar to wipe state and restart the demo instantly!
 
 ---
 

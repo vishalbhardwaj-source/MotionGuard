@@ -218,12 +218,16 @@ def test_alert_wording_simulator_no_confirmed_collision(tmp_path, monkeypatch):
     import src.reporting
     import src.alert_dispatcher
     import src.incident_pipeline
+    import src.db
     from src.incident_pipeline import run_automated_incident_pipeline
 
     monkeypatch.setattr(src.reporting, "INCIDENT_LOG", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(src.reporting, "EVIDENCE_DIR", tmp_path / "evidence")
+    monkeypatch.setattr(src.incident_pipeline, "EVIDENCE_DIR", tmp_path / "evidence")
     monkeypatch.setattr(src.alert_dispatcher, "DISPATCH_LOG_PATH", tmp_path / "sms_dispatches.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "INTERACTION_EVENTS_PATH", tmp_path / "events.jsonl")
     monkeypatch.setattr(src.incident_pipeline, "DOSSIERS_DIR", tmp_path / "incident_dossiers")
+    monkeypatch.setattr(src.db, "DEFAULT_DB_PATH", tmp_path / "test_motionguard.db")
 
     video_path = Path("data/videos/crash_demo.mp4")
     if not video_path.is_file():
