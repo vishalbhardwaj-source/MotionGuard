@@ -373,7 +373,7 @@ def assess_risk(
 
 
 # ==============================================================================
-# Round 2: Centralized Image-Space Risk Scorer Configuration
+# Centralized Image-Space Risk Scorer Configuration
 # ==============================================================================
 IMAGE_SPACE_RISK_THRESHOLDS = {
     # Continuous scoring bands (pixels and px/s)

@@ -400,7 +400,7 @@ def dispatch_sms(
                 "dispatched_at": now_iso,
             }
 
-    # Default Fallback: Local Carrier Simulator (Zero-setup hackathon mode)
+    # Default Fallback: Local Carrier Simulator (Zero-setup local mode)
     simulated_id = f"SMS-SIM-{int(datetime.datetime.now().timestamp() * 1000) % 1000000:06d}"
     return {
         "success": True,

@@ -1,5 +1,5 @@
 """
-MotionGuard Round 2 Demo Script
+MotionGuard Image-Space Event Risk Demo Script
 Runs outputs/trajectories_trails_test.jsonl through:
   1. analyze_interactions
   2. aggregate_interaction_events
@@ -21,14 +21,14 @@ from src.event_aggregation import aggregate_interaction_events
 from src.risk_engine import assess_event_risk
 
 
-def run_round2_demo():
+def run_event_risk_demo():
     traj_path = Path("outputs/trajectories_trails_test.jsonl")
     if not traj_path.is_file():
         print(f"Error: Trajectory file {traj_path} not found.")
         return
 
     print("=" * 80)
-    print("MOTIONGUARD ROUND 2: IMAGE-SPACE RISK SCORER & DEMO VERIFICATION")
+    print("MOTIONGUARD: IMAGE-SPACE RISK SCORER & DEMO VERIFICATION")
     print("=" * 80)
     print(f"Loading trajectory records from: {traj_path}")
 
@@ -70,9 +70,9 @@ def run_round2_demo():
             print(f"  • {card['factor']}: [{card['display_status']}] -> {card['detail']}")
 
     print("\n" + "=" * 80)
-    print("Demo step 1 complete!")
+    print("Demo step complete!")
     print("=" * 80)
 
 
 if __name__ == "__main__":
-    run_round2_demo()
+    run_event_risk_demo()

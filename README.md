@@ -66,7 +66,7 @@ flowchart TD
 4. **🚨 Emergency Dispatch with Severity Escalation**:
    - **Telegram Instant Alerts with Snapshots**: Delivers rich alerts including camera ID, geographic location, kinematic metrics, and photographic keyframe evidence directly to responder channels.
    - **Urgent Severity Escalation Bypass**: Cooldown timers prevent spam on ongoing scenes, but automatically bypass throttling if a subsequent incident escalates to `CRITICAL` or increases threat score by $\ge 15$ points.
-   - **Zero-Setup Carrier Simulator**: Safe local dispatch simulator for testing and hackathon judging.
+   - **Zero-Setup Carrier Simulator**: Safe local dispatch simulator for testing and evaluation.
 
 5. **📄 Comprehensive Investigation-Support PDF Dossier**:
    - Auto-generates structured incident dossiers with ReportLab.
@@ -156,7 +156,7 @@ On a 24-second clip with no collisions, 3 candidate episodes extrapolates to ~45
 
 ---
 
-## 🧭 Evaluator & Judge Walkthrough (6 Dashboard Tabs)
+## 🧭 Comprehensive System Walkthrough (6 Dashboard Tabs)
 
 When evaluating the live application at `http://localhost:8501`, follow this sequence:
 
@@ -171,7 +171,7 @@ When evaluating the live application at `http://localhost:8501`, follow this seq
 
 ---
 
-### ⏱️ 60-Second Hackathon Live Demo Sequence
+### ⏱️ 60-Second Quickstart Live Demo Sequence
 1. **Launch App**: Double-click `run_dashboard.bat` (or run `streamlit run app.py`).
 2. **Enter Workstation**: On the welcome hero screen, click **"🚀 Enter Live Operations Workstation"**.
 3. **Trigger Crash Demo**:
@@ -248,7 +248,7 @@ Open your browser at **`http://localhost:8501`**. *(Note: Safe Local Simulator M
 
 ---
 
-### 3. 🏆 Hackathon Evaluation & Live Demonstration Walkthrough
+### 3. 🚀 Comprehensive Live Demonstration Walkthrough
 
 Follow this 2-minute walkthrough to experience MotionGuard's complete end-to-end capabilities:
 
@@ -278,7 +278,7 @@ Follow this 2-minute walkthrough to experience MotionGuard's complete end-to-end
 
 ### 4. Running Automated Tests
 
-Run the full automated test suite (72 unit & integration tests across vision, kinematics, zones, clips & benchmarks):
+Run the full automated test suite (82 unit & integration tests across vision, kinematics, zones, clips & benchmarks):
 
 ```bash
 # Windows 1-Click
@@ -403,7 +403,7 @@ MotionGuard/
 │   ├── prune_gateway.py        # Prune AI Gateway proxy & incident triage summary generator
 │   └── pdf_report.py           # Investigation-support dossier PDF export
 ├── tests/
-│   ├── test_round2_event_risk.py      # Multi-factor event risk & candidate evaluation tests
+│   ├── test_candidate_event_risk.py   # Multi-factor event risk & candidate evaluation tests
 │   ├── test_prune_gateway.py          # Prune gateway & candidate pruning tests
 │   ├── test_zones.py                  # Geofencing zone containment & threshold modulation tests
 │   ├── test_confusion_matrix.py       # Real-time calibration & confusion matrix evaluation tests

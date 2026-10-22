@@ -191,7 +191,7 @@ def create_interaction_pdf(event, evidence_path=None):
 
     story.extend([table, Spacer(1, 4 * mm)])
 
-    # Explainable Risk Breakdown Section (Round 2 Stretch: Active Thresholds & Measured Values)
+    # Explainable Risk Breakdown Section: Active Thresholds & Measured Values
     story.append(Paragraph("3. Explainable Risk Factor Breakdown", heading_style))
     story.append(
         Paragraph(

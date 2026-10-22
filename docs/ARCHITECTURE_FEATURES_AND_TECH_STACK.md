@@ -169,7 +169,7 @@ flowchart TD
   1. **Multi-Gateway Dispatch Architecture**:
      - **Telegram Bot API**: Sends rich Markdown alerts with embedded photographic keyframe evidence snapshots directly to emergency responder group channels.
      - **Twilio REST API**: Sends direct cellular SMS emergency alerts to first-responder dispatch numbers.
-     - **Local Carrier Simulator**: Fully functional offline fallback that simulates delivery receipts with unique message IDs for demonstration and judging without live API credentials.
+     - **Local Carrier Simulator**: Fully functional offline fallback that simulates delivery receipts with unique message IDs for demonstration and evaluation without live API credentials.
   3. **Smart Per-Camera Cooldown with Severity Escalation Bypass**:
      - Enforces a 60-second anti-spam cooldown per surveillance camera to prevent responder alert flooding during lingering accidents.
      - **Urgent Escalation Bypass**: Automatically overrides active cooldown timers if a subsequent incident escalates to `CRITICAL` or increases threat score by $\ge 15$ points.

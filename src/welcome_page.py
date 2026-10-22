@@ -136,7 +136,7 @@ def render_welcome_page():
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 1.8rem;">🚦</span>
                     <span style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: bold; text-transform: uppercase;">
-                        RECOMMENDED FOR JUDGES
+                        RECOMMENDED
                     </span>
                 </div>
                 <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 1.35rem;">

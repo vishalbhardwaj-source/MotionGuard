@@ -702,7 +702,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.caption("MotionGuard AI · Submission Ready · Hackathon Edition")
+    st.caption("MotionGuard AI · Submission Ready · Operations Edition")
 
 # Check active portal view
 active_view = st.session_state.get("active_view", "welcome")
@@ -1590,7 +1590,7 @@ with video_tab:
     )
 
     st.subheader("📹 Step 1: Select or Upload Surveillance Video")
-    st.caption("Upload your own traffic surveillance video, or quickly load pre-verified benchmark video clips for instant judging:")
+    st.caption("Upload your own traffic surveillance video, or quickly load pre-verified benchmark video clips for instant evaluation:")
 
     def _load_video_source(vpath, vname, label_icon="📹"):
         p = Path(vpath)

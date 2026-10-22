@@ -640,4 +640,4 @@ def render_project_overview_page():
             st.rerun()
 
     st.divider()
-    st.caption("MotionGuard AI · Submission Ready · Hackathon Edition · Explainable Decision-Support System")
+    st.caption("MotionGuard AI · Submission Ready · Operations Edition · Explainable Decision-Support System")
