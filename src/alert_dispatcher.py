@@ -4,11 +4,7 @@ import math
 import os
 import re
 from pathlib import Path
-try:
-    import requests
-except ImportError:
-    from unittest.mock import MagicMock
-    requests = MagicMock()
+import requests
 
 # Per-camera dispatch cooldown cache (seconds)
 _DISPATCH_COOLDOWN_CACHE = {}

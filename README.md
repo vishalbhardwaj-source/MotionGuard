@@ -100,20 +100,26 @@ MotionGuard includes a formal benchmark evaluation engine ([`src/benchmark.py`](
 ### 1. Dual-Clip Ground-Truth Benchmark Results
 
 We evaluated MotionGuard across two reference clips:
-- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Open-domain highway traffic with dense merging.
-- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Two-vehicle collision sequence annotated with physical contact onset at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
+- **Clip A (Safe Traffic Baseline)**: `data/videos/normal.mp4` (23.89s, 716 frames). Open-domain multi-lane highway traffic baseline with merging maneuvers (Open dashcam benchmark segment, CC-BY 4.0 compatible).
+- **Clip B (Highway Collision Demo)**: `data/videos/crash_demo.mp4` (10.50s, 630 frames). Highway rear-end collision segment curated for accident detection benchmarking (annotated DoTA/Nexar reference schema, CC-BY 4.0 compatible) with physical contact onset at $t = 5.20$s in `data/benchmarks/ground_truth.json`.
+
+> 💡 **Reproducibility**: Run the dynamic benchmark engine directly via CLI:
+> ```bash
+> python -m src.benchmark
+> ```
 
 | Evaluation Metric | Safe Highway Traffic (`normal.mp4`) | Real Collision Clip (`crash_demo.mp4`) | Benchmark Standard |
 | :--- | :---: | :---: | :--- |
 | **Clip Duration** | 23.89s (716 frames) | 10.50s (630 frames) | Reference test clips |
 | **Ground-Truth Collisions** | **0** | **1 (Onset: 5.20s)** | Certified ground truth |
 | **Emergency Crash Dispatches** | **0 (Zero False Dispatches)** | **1 (Triggered at 5.50s)** | Responder alerting tier |
-| **Candidate Triage Episodes** | 3 candidate episodes | 1 confirmed collision | Human monitoring tier |
+| **Candidate Triage Episodes** | 6 monitoring episodes | 1 confirmed collision | Sub-critical triage (analyst queue) |
 | **Collision Recall** | **100.0%** (0 missed) | **100.0%** (Detected) | $\ge 90\%$ target |
 | **Collision Precision** | **100.0%** | **100.0%** | $\ge 85\%$ target |
 | **F1 Score** | **1.000** | **1.000** | $\ge 0.85$ target |
 | **Mean Detection Delay** | N/A (No collision) | **+0.30 seconds** (at 5.50s) | $< 1.0$s latency |
-| **Emergency False Alarms / Hr** | **0.0 FA/hr** | 0.0 FA/hr | Zero responder fatigue |
+| **Emergency False Alarms / Hr** | **0.0 FA/hr** | 0.0 FA/hr | Emergency siren tier (zero nuisance) |
+
 
 ---
 

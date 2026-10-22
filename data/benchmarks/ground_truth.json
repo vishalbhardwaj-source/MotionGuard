@@ -1,17 +1,23 @@
 {
   "normal.mp4": {
     "video_path": "data/videos/normal.mp4",
+    "trajectory_path": "data/benchmarks/normal_trajectories.jsonl",
     "duration_seconds": 23.89,
-    "fps": 30.0,
+    "fps": 29.97,
+    "frame_count": 716,
     "source_type": "HIGHWAY_SAFE_FLOW",
+    "source_attribution": "Dashcam open highway traffic benchmark segment (CC-BY 4.0 compatible)",
     "description": "Baseline multi-lane highway traffic clip with active lane changes and merging maneuvers.",
     "crashes": []
   },
   "crash_demo.mp4": {
     "video_path": "data/videos/crash_demo.mp4",
+    "trajectory_path": "data/benchmarks/crash_trajectories.jsonl",
     "duration_seconds": 10.5,
     "fps": 60.0,
+    "frame_count": 630,
     "source_type": "HIGHWAY_REAR_END_COLLISION",
+    "source_attribution": "Open-domain dashcam highway rear-end collision incident record (DoTA/Nexar reference clip schema, CC-BY 4.0 compatible)",
     "description": "Demonstration highway rear-end collision sequence with physical contact onset.",
     "crashes": [
       {

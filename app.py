@@ -2665,13 +2665,13 @@ with calibration_tab:
     )
 
     all_active_detections = surviving_crash + surviving_safe
-    total_eval_duration = 33.89  # 23.89s (normal) + 10.00s (crash)
+    total_eval_duration = 34.39  # 23.89s (normal, 716 frames) + 10.50s (crash, 630 frames)
 
     cm = compute_confusion_matrix(
         detected_events=all_active_detections,
         ground_truth_crashes=gt_crashes,
         video_duration_seconds=total_eval_duration,
-        total_negative_units=1016,
+        total_negative_units=1346,
         temporal_tolerance_seconds=tune_tolerance,
     )
 
