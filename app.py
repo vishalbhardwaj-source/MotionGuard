@@ -36,6 +36,7 @@ from src.gemini_service import (
     test_gemini_connection,
     generate_gemini_triage_analysis,
 )
+from src.ui_icons import get_svg_icon
 
 
 st.set_page_config(
@@ -265,27 +266,89 @@ def get_event_evidence_image(event, active_video=None, trajectory_records=None):
     return None
 
 
-# Inject custom CSS for sleek dashboard cards and badges
-st.markdown(
+# Inject custom CSS for Tactical Mission Control / Cybernetic SOC Workstation
+st.html(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700;800&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    :root {
+        --mg-canvas: #080c16;
+        --mg-surface-1: #0d1322;
+        --mg-surface-2: #131b2e;
+        --mg-surface-3: #1a243d;
+        --mg-border: rgba(255, 255, 255, 0.08);
+        --mg-border-cyan: rgba(56, 189, 248, 0.35);
+        --mg-cyan: #38bdf8;
+        --mg-emerald: #10b981;
+        --mg-amber: #f59e0b;
+        --mg-red: #ef4444;
+    }
+
+    html, body, [data-testid="stAppViewContainer"], .main {
+        background-color: var(--mg-canvas) !important;
+        color: #f8fafc !important;
+        font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+
+    /* Custom Browser Surfaces */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #080c16;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(56, 189, 248, 0.45);
+    }
+    ::selection {
+        background: rgba(56, 189, 248, 0.28);
+        color: #ffffff;
+    }
+    :focus-visible {
+        outline: 2px solid #38bdf8 !important;
+        outline-offset: 2px !important;
+    }
+
+    /* Monospace Telemetry Numbers */
+    code, kbd, samp, pre, [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Fluid Responsive Dashboard Layout */
+    .main .block-container {
+        padding-top: 1.2rem !important;
+        padding-bottom: 2.2rem !important;
+        padding-left: clamp(1rem, 2.5vw, 3rem) !important;
+        padding-right: clamp(1rem, 2.5vw, 3rem) !important;
+        max-width: 1480px;
     }
 
     /* Hero Brand Banner */
     .hero-banner {
-        background: radial-gradient(circle at 10% 20%, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.90) 80%);
-        border: 1px solid rgba(56, 189, 248, 0.28);
+        background: radial-gradient(circle at 10% 20%, rgba(14, 116, 144, 0.30) 0%, rgba(13, 19, 34, 0.95) 85%),
+                    linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(8, 12, 22, 0.98));
+        border: 1px solid var(--mg-border-cyan);
         border-radius: 14px;
-        padding: 22px 28px;
-        margin-bottom: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        padding: 24px 28px;
+        margin-bottom: 22px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-banner::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, #38bdf8 0%, #818cf8 40%, #10b981 75%, #ef4444 100%);
     }
     .hero-title {
-        font-size: 2.15rem;
+        font-size: 2.10rem;
         font-weight: 800;
         letter-spacing: -0.03em;
         color: #ffffff;
@@ -298,20 +361,22 @@ st.markdown(
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(56, 189, 248, 0.14);
-        border: 1px solid rgba(56, 189, 248, 0.40);
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.35);
         padding: 3px 10px;
         border-radius: 999px;
-        font-size: 0.73rem;
+        font-size: 0.72rem;
         font-weight: 700;
         color: #38bdf8;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+        font-family: 'JetBrains Mono', monospace;
     }
     .hero-sub {
         color: #94a3b8;
-        font-size: 0.94rem;
+        font-size: 0.92rem;
         margin: 6px 0 0 0;
+        line-height: 1.5;
     }
 
     /* KPI Grid Responsive Fluid Layout */
@@ -327,48 +392,31 @@ st.markdown(
         .hero-banner { padding: 14px 16px !important; }
     }
 
-    /* Fluid Responsive Dashboard Layout */
-    .main .block-container {
-        padding-top: 1.2rem !important;
-        padding-bottom: 2rem !important;
-        padding-left: clamp(1rem, 2.5vw, 3rem) !important;
-        padding-right: clamp(1rem, 2.5vw, 3rem) !important;
-    }
-
-    /* Responsive Video & Image Elements */
-    video, img {
-        max-width: 100% !important;
-        height: auto !important;
-        border-radius: 8px;
-    }
-
-    /* Responsive Tab Headers */
-    button[data-baseweb="tab"] {
-        font-size: clamp(0.78rem, 1.1vw, 1.02rem) !important;
-        padding: 8px clamp(6px, 1.2vw, 14px) !important;
-    }
-
-    /* Responsive Table Scrolling */
-    table {
-        width: 100% !important;
-        overflow-x: auto !important;
-    }
+    /* Tactical KPI Cards */
     .kpi-card {
-        background: linear-gradient(145deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.85));
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(145deg, rgba(19, 27, 46, 0.75), rgba(11, 15, 25, 0.92));
+        border: 1px solid var(--mg-border);
         border-radius: 12px;
-        padding: 16px 18px;
+        padding: 16px 20px;
         position: relative;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+        transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        overflow: hidden;
     }
     .kpi-card:hover {
-        border-color: rgba(56, 189, 248, 0.4);
+        border-color: rgba(56, 189, 248, 0.45);
         transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.12);
+    }
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
     }
     .kpi-label {
         font-size: 0.74rem;
-        font-weight: 600;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #94a3b8;
@@ -378,11 +426,12 @@ st.markdown(
         gap: 6px;
     }
     .kpi-value {
-        font-size: 1.80rem;
+        font-size: 1.85rem;
         font-weight: 800;
         color: #f8fafc;
-        line-height: 1.1;
+        line-height: 1.15;
         margin-bottom: 4px;
+        font-family: 'JetBrains Mono', monospace;
     }
     .kpi-caption {
         font-size: 0.74rem;
@@ -395,56 +444,87 @@ st.markdown(
         color: #7dd3fc;
         padding: 4px 10px;
         border-radius: 999px;
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         font-weight: 600;
         margin-right: 6px;
         margin-bottom: 6px;
     }
 
+    /* Responsive Video & Image Elements */
+    video, img {
+        max-width: 100% !important;
+        height: auto !important;
+        border-radius: 8px;
+    }
+
     /* Navigation Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 6px;
-        background: rgba(15, 23, 42, 0.65);
+        background: rgba(13, 19, 34, 0.85);
         padding: 6px;
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.07);
     }
     .stTabs [data-baseweb="tab"] {
         padding: 9px 18px;
         border-radius: 7px;
         font-weight: 600;
-        font-size: 0.90rem;
+        font-size: clamp(0.78rem, 1.05vw, 0.92rem);
         color: #94a3b8;
         border: none !important;
         transition: all 0.2s ease;
     }
     .stTabs [data-baseweb="tab"]:hover {
         color: #f1f5f9;
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.05);
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(14, 165, 233, 0.16)) !important;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.20), rgba(14, 165, 233, 0.14)) !important;
         color: #38bdf8 !important;
         border: 1px solid rgba(56, 189, 248, 0.45) !important;
-        box-shadow: 0 0 14px rgba(56, 189, 248, 0.15);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.18);
     }
 
-    /* Button Enhancements */
+    /* Streamlit Buttons */
     button[kind="primary"] {
         background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-        border: none !important;
+        border: 1px solid rgba(239, 68, 68, 0.6) !important;
         font-weight: 700 !important;
         letter-spacing: 0.02em !important;
         box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35) !important;
-        transition: all 0.2s ease !important;
+        transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+        border-radius: 8px !important;
     }
     button[kind="primary"]:hover {
         transform: translateY(-1px) !important;
         box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5) !important;
     }
+    button[kind="secondary"], .stButton button:not([kind="primary"]) {
+        background: rgba(17, 24, 39, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: #e2e8f0 !important;
+        border-radius: 8px !important;
+        transition: all 0.18s ease !important;
+    }
+    button[kind="secondary"]:hover, .stButton button:not([kind="primary"]):hover {
+        border-color: rgba(56, 189, 248, 0.45) !important;
+        color: #ffffff !important;
+        background: rgba(30, 41, 59, 0.7) !important;
+    }
+
+    /* Streamlit Sidebar Overrides */
+    section[data-testid="stSidebar"] {
+        background-color: #0a0e1a !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+    }
+
+    /* Dataframe & Tables */
+    [data-testid="stDataFrame"], table {
+        border-radius: 8px;
+        overflow: hidden;
+    }
     </style>
-    """,
-    unsafe_allow_html=True,
+    """
 )
 
 
@@ -454,57 +534,59 @@ def render_explainable_risk_card(risk_data, title="Explainable Risk Factor Break
     if not factors:
         return
 
-    st.markdown(f"##### 🔍 {title}")
+    st.markdown(f"##### {get_svg_icon('search', size=16, color='#38bdf8')} {title}", unsafe_allow_html=True)
     st.caption("Transparent multi-factor audit trail explaining how the threat score was determined.")
 
     col_a, col_b = st.columns(2)
     for idx, f in enumerate(factors):
         target_col = col_a if idx % 2 == 0 else col_b
-        badge = f.get("badge", "⚪ UNKNOWN")
+        badge = f.get("badge", "UNKNOWN")
         status = f.get("status", "N/A")
         detail = f.get("detail", "")
         factor_name = f.get("factor", "Factor")
 
         if "detected" in status.lower():
-            border_color = "#ef4444"
+            border_color = "rgba(239, 68, 68, 0.45)"
             bg_color = "rgba(239, 68, 68, 0.08)"
             pill_color = "#f87171"
+            pill_bg = "rgba(239, 68, 68, 0.16)"
         elif "moderate" in status.lower() or "possible" in status.lower():
-            border_color = "#f59e0b"
+            border_color = "rgba(245, 158, 11, 0.45)"
             bg_color = "rgba(245, 158, 11, 0.08)"
             pill_color = "#fbbf24"
+            pill_bg = "rgba(245, 158, 11, 0.16)"
         elif "insufficient" in status.lower() or "unavailable" in status.lower():
-            border_color = "#94a3b8"
-            bg_color = "rgba(148, 163, 184, 0.08)"
+            border_color = "rgba(148, 163, 184, 0.25)"
+            bg_color = "rgba(148, 163, 184, 0.06)"
             pill_color = "#cbd5e1"
+            pill_bg = "rgba(148, 163, 184, 0.14)"
         else:
-            border_color = "#10b981"
+            border_color = "rgba(16, 185, 129, 0.45)"
             bg_color = "rgba(16, 185, 129, 0.08)"
             pill_color = "#34d399"
+            pill_bg = "rgba(16, 185, 129, 0.16)"
 
         with target_col:
-            st.markdown(
+            st.html(
                 f"""
                 <div style="
                     border: 1px solid {border_color};
-                    border-left: 4px solid {border_color};
                     background: {bg_color};
-                    border-radius: 6px;
-                    padding: 8px 12px;
-                    margin-bottom: 8px;
+                    border-radius: 8px;
+                    padding: 10px 14px;
+                    margin-bottom: 10px;
                 ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                        <span style="font-weight: 600; font-size: 0.88rem; color: #f1f5f9;">{factor_name}</span>
-                        <span style="font-weight: 700; font-size: 0.78rem; color: {pill_color}; text-transform: uppercase;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span style="font-weight: 700; font-size: 0.88rem; color: #f1f5f9;">{factor_name}</span>
+                        <span style="background: {pill_bg}; border: 1px solid {border_color}; font-weight: 700; font-size: 0.72rem; color: {pill_color}; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;">
                             {badge}
                         </span>
                     </div>
-                    <div style="font-size: 0.80rem; color: #94a3b8; line-height: 1.3;">
+                    <div style="font-size: 0.80rem; color: #94a3b8; line-height: 1.4;">
                         {detail}
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
 
@@ -518,23 +600,24 @@ def render_gemini_analysis_card(event, risk_data, evidence_image_path=None, cont
     badge_status = "Google Gemini 3.5 Ready" if key_present else "Gemini API Key Required"
     badge_color = "#38bdf8" if key_present else "#f59e0b"
 
-    st.markdown(
+    st.html(
         f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 4px;">
-            <span style="font-weight: 700; font-size: 0.95rem; color: #f8fafc;">🤖 Gemini Multimodal AI Forensic Intelligence</span>
-            <span style="background: rgba(56, 189, 248, 0.15); color: {badge_color}; border: 1px solid {badge_color}; border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 6px;">
+            <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem; color: #f8fafc;">
+                {get_svg_icon("cpu", size=16, color="#38bdf8")} Gemini Multimodal AI Forensic Intelligence
+            </span>
+            <span style="background: rgba(56, 189, 248, 0.12); color: {badge_color}; border: 1px solid {badge_color}; border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
                 {badge_status}
             </span>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     col_info, col_btn = st.columns([2, 1])
     with col_info:
         st.caption("Deep reasoning over kinematic telemetry and visual keyframes via Google Gemini 3.5 Flash.")
     with col_btn:
-        btn_label = "Re-analyze with Gemini" if cached else "✨ Run Gemini Analysis"
+        btn_label = "Re-analyze with Gemini" if cached else "Run Gemini Analysis"
         run_analysis = st.button(btn_label, key=f"btn_gemini_{context_prefix}_{event_id}", use_container_width=True)
 
     if run_analysis:
@@ -556,60 +639,60 @@ def render_gemini_analysis_card(event, risk_data, evidence_image_path=None, cont
         mode_badge = "Vision + Kinematics (Multimodal)" if multimodal else "Kinematics Analysis"
         status_color = "#38bdf8" if status == "SUCCESS" else "#94a3b8"
 
-        st.markdown(
+        st.html(
             f"""
             <div style="
-                border: 1px solid #38bdf8;
-                border-left: 4px solid #38bdf8;
-                background: rgba(15, 23, 42, 0.85);
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                background: rgba(13, 19, 34, 0.90);
                 border-radius: 8px;
-                padding: 14px;
+                padding: 16px;
                 margin-top: 8px;
                 margin-bottom: 12px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 700; color: #38bdf8; font-size: 0.90rem;">
-                        ✦ Gemini Safety & Incident Assessment
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 0.90rem; display: flex; align-items: center; gap: 6px;">
+                        {get_svg_icon("activity", size=15, color="#38bdf8")} Gemini Safety & Incident Assessment
                     </span>
-                    <span style="background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border-radius: 4px; padding: 2px 8px; font-size: 0.74rem; font-weight: 600;">
+                    <span style="background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; font-family: 'JetBrains Mono', monospace;">
                         {model} · {mode_badge}
                     </span>
                 </div>
-                <div style="color: #f1f5f9; font-size: 0.88rem; line-height: 1.55; white-space: pre-wrap;">
+                <div style="color: #f1f5f9; font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap;">
 {summary}
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
 
 # Sidebar Telemetry & Quick Presets
 with st.sidebar:
-    st.markdown(
-        """
-        <div style="text-align: center; padding: 6px 0 14px 0;">
-            <div style="font-size: 2.2rem; line-height: 1.1;">🚦</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">MotionGuard</div>
-            <div style="font-size: 0.70rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">
+    st.html(
+        f"""
+        <div style="text-align: center; padding: 10px 0 16px 0;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; margin-bottom: 8px;">
+                {get_svg_icon("shield", size=24, color="#38bdf8")}
+            </div>
+            <div style="font-size: 1.28rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">MotionGuard</div>
+            <div style="font-size: 0.70rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'JetBrains Mono', monospace; margin-top: 2px;">
                 Autonomous Edge AI · v2.5
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
-    st.markdown("##### 🧭 Portal Navigation")
+    st.markdown("##### Portal Navigation")
     current_view = st.session_state.get("active_view", "welcome")
     view_nav_options = [
-        "🌟 Welcome to MotionGuard",
-        "📖 System Architecture & Mission",
-        "🚦 Operations Workstation",
+        "Welcome to MotionGuard",
+        "System Architecture & Mission",
+        "Operations Workstation",
     ]
     view_map = {
-        "🌟 Welcome to MotionGuard": "welcome",
-        "📖 System Architecture & Mission": "overview",
-        "🚦 Operations Workstation": "workstation",
+        "Welcome to MotionGuard": "welcome",
+        "System Architecture & Mission": "overview",
+        "Operations Workstation": "workstation",
     }
     view_idx_map = {"welcome": 0, "overview": 1, "workstation": 2}
     view_idx = view_idx_map.get(current_view, 0)
@@ -633,38 +716,37 @@ with st.sidebar:
     status_color = "#34d399" if is_gpu else "#f59e0b"
     status_label = "RTX 5070 · FP16 Active" if is_gpu else "CPU Host Active"
 
-    st.markdown("##### ⚡ System Telemetry")
-    st.markdown(
+    st.markdown(f"##### {get_svg_icon('activity', size=16, color='#38bdf8')} System Telemetry", unsafe_allow_html=True)
+    st.html(
         f"""
-        <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255,255,255,0.08); border-radius: 9px; padding: 12px; margin-bottom: 16px; font-size: 0.82rem; line-height: 1.6;">
-            <div style="display: flex; justify-content: space-between;">
+        <div style="background: rgba(13, 19, 34, 0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 9px; padding: 14px; margin-bottom: 16px; font-size: 0.82rem; line-height: 1.7;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Compute Engine</span>
-                <span style="color: {status_color}; font-weight: 700;">● {status_label}</span>
+                <span style="color: {status_color}; font-weight: 700; font-family: 'JetBrains Mono', monospace;">● {status_label}</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Vision Core</span>
-                <span style="color: #f1f5f9; font-weight: 600;">YOLO11n + ByteTrack</span>
+                <span style="color: #f1f5f9; font-weight: 600; font-family: 'JetBrains Mono', monospace;">YOLO11n + ByteTrack</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Emergency Gateway</span>
-                <span style="color: #38bdf8; font-weight: 600;">Telegram + Twilio</span>
+                <span style="color: #38bdf8; font-weight: 600; font-family: 'JetBrains Mono', monospace;">Telegram + Twilio</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Audit Standards</span>
                 <span style="color: #cbd5e1;">Explainable Multi-Factor</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Forensic AI Agent</span>
-                <span style="color: {'#38bdf8' if get_gemini_api_key() else '#94a3b8'}; font-weight: 600;">{'● Gemini 3.5 Active' if get_gemini_api_key() else '○ Offline Sim'}</span>
+                <span style="color: {'#38bdf8' if get_gemini_api_key() else '#94a3b8'}; font-weight: 600; font-family: 'JetBrains Mono', monospace;">{'● Gemini 3.5 Active' if get_gemini_api_key() else '○ Offline Sim'}</span>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
-    st.markdown("##### 🧹 Incident Logs & State")
+    st.markdown(f"##### {get_svg_icon('trash', size=15, color='#94a3b8')} Incident Logs & State", unsafe_allow_html=True)
     st.caption("Wipe recorded incidents and reset dashboard to clean state:")
-    if st.button("🗑️ Clear Incident Logs & Reset", use_container_width=True, help="Wipe all recorded incident logs, dispatches, dossiers, and reset session state."):
+    if st.button("Clear Incident Logs & Reset", use_container_width=True, help="Wipe all recorded incident logs, dispatches, dossiers, and reset session state."):
         for log_p in [INCIDENT_LOG, SMS_LOG, NOTIFICATION_LOG, REVIEW_LOG]:
             if log_p.exists():
                 log_p.write_text("", encoding="utf-8")
@@ -717,13 +799,20 @@ elif active_view == "overview":
 # Operations Workstation View
 nav_col_a, nav_col_b, nav_col_c = st.columns([2, 1, 1])
 with nav_col_a:
-    st.caption("Active Mode: 🚦 **Operations Workstation** · Real-Time Incident Investigation Console")
+    st.html(
+        """
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #94a3b8; padding-top: 4px;">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>
+            Active Console: <strong style="color: #ffffff;">Operations Workstation</strong> · Real-Time Incident Investigation
+        </div>
+        """
+    )
 with nav_col_b:
-    if st.button("🌟 Welcome Page", use_container_width=True, key="btn_w_back_welcome"):
+    if st.button("Welcome Portal", use_container_width=True, key="btn_w_back_welcome"):
         st.session_state["active_view"] = "welcome"
         st.rerun()
 with nav_col_c:
-    if st.button("📖 Architecture & Mission", use_container_width=True, key="btn_w_back_overview"):
+    if st.button("Architecture & Mission", use_container_width=True, key="btn_w_back_overview"):
         st.session_state["active_view"] = "overview"
         st.rerun()
 
@@ -733,7 +822,7 @@ critical_count = sum(1 for r in reports if r.get("threat_level") == "CRITICAL")
 recent_dispatches = read_sms_log()
 dispatch_count = len(recent_dispatches)
 
-st.html("""
+st.html(f"""
 <div class="hero-banner">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
         <div>
@@ -745,10 +834,10 @@ st.html("""
             <p class="hero-sub">Edge AI vision for real-time trajectory tracking, explainable multi-factor collision triage, and instant authority dispatch.</p>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-            <span style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); color: #4ade80; padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;">
+            <span style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; padding: 4px 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em; font-family: 'JetBrains Mono', monospace;">
                 ● LIVE SYSTEM OPERATIONAL
             </span>
-            <span style="font-size: 0.74rem; color: #64748b; font-family: 'JetBrains Mono', monospace;">
+            <span style="font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace;">
                 CUDA FP16 · SUB-20MS INFERENCE
             </span>
         </div>
@@ -756,26 +845,34 @@ st.html("""
 </div>
 """)
 
-# Custom Glassmorphic KPI Cards
+# Custom Tactical SOC KPI Cards
 st.html(f"""
 <div class="kpi-grid">
-    <div class="kpi-card" style="border-left: 3px solid #38bdf8;">
-        <div class="kpi-label">📋 Logged Incidents</div>
+    <div class="kpi-card">
+        <div class="kpi-label">
+            {get_svg_icon("file-text", size=14, color="#38bdf8")} Logged Incidents
+        </div>
         <div class="kpi-value">{len(reports)}</div>
         <div class="kpi-caption">Incident investigation audit records</div>
     </div>
-    <div class="kpi-card" style="border-left: 3px solid #ef4444;">
-        <div class="kpi-label" style="color: #f87171;">🚨 Critical Collisions</div>
+    <div class="kpi-card">
+        <div class="kpi-label" style="color: #f87171;">
+            {get_svg_icon("shield-alert", size=14, color="#ef4444")} Critical Collisions
+        </div>
         <div class="kpi-value" style="color: #f87171;">{critical_count}</div>
         <div class="kpi-caption">Score ≥ 80 / 100 escalated</div>
     </div>
-    <div class="kpi-card" style="border-left: 3px solid #10b981;">
-        <div class="kpi-label" style="color: #34d399;">⚡ Neural Inference</div>
-        <div class="kpi-value">~18<span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">ms</span></div>
+    <div class="kpi-card">
+        <div class="kpi-label" style="color: #34d399;">
+            {get_svg_icon("cpu", size=14, color="#10b981")} Neural Inference
+        </div>
+        <div class="kpi-value">~18<span style="font-size: 0.95rem; font-weight: 600; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">ms</span></div>
         <div class="kpi-caption">YOLO11n + ByteTrack CUDA</div>
     </div>
-    <div class="kpi-card" style="border-left: 3px solid #a855f7;">
-        <div class="kpi-label" style="color: #c084fc;">📡 Live Dispatches</div>
+    <div class="kpi-card">
+        <div class="kpi-label" style="color: #c084fc;">
+            {get_svg_icon("send", size=14, color="#c084fc")} Live Dispatches
+        </div>
         <div class="kpi-value" style="color: #c084fc;">{dispatch_count}</div>
         <div class="kpi-caption">Telegram / SMS alerts sent</div>
     </div>
@@ -790,7 +887,7 @@ if pipeline_run and pipeline_run.get("incidents_created"):
     channel_name = disp.get("channel", "TELEGRAM_ALERT")
     recipient_name = disp.get("recipient", "Concerned Authorities")
     msg_id = disp.get("message_id", "N/A")
-    badge_title = "🚨 AUTONOMOUS ACCIDENT ESCALATION DISPATCHED!" if has_dispatch else "⚠️ HIGH-RISK INCIDENT FLAGGED FOR OPERATOR TRIAGE"
+    badge_title = "AUTONOMOUS ACCIDENT ESCALATION DISPATCHED" if has_dispatch else "HIGH-RISK INCIDENT FLAGGED FOR OPERATOR TRIAGE"
     badge_tag = "LIVE ALERT SENT" if has_dispatch else "TRIAGE LOGGED"
     badge_color = "#ef4444" if has_dispatch else "#f59e0b"
     dispatch_desc = (
@@ -798,40 +895,42 @@ if pipeline_run and pipeline_run.get("incidents_created"):
         if has_dispatch
         else "Retained in triage queue for operator triage &nbsp;|&nbsp; Official Forensic PDF Dossier compiled."
     )
-    st.markdown(
+    st.html(
         f"""
         <div style="
-            background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(15, 23, 42, 0.95));
-            border: 2px solid {badge_color};
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.16), rgba(15, 23, 42, 0.95));
+            border: 1px solid {badge_color};
             border-radius: 10px;
-            padding: 14px 20px;
-            margin-bottom: 16px;
+            padding: 16px 20px;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 1.05rem; font-weight: 700; color: #f87171;">{badge_title}</span>
-                <span style="background: {badge_color}; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem;">
+                <span style="font-size: 1.05rem; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 8px;">
+                    {get_svg_icon('alert-triangle', size=18, color=badge_color)} {badge_title}
+                </span>
+                <span style="background: {badge_color}; color: white; padding: 3px 10px; border-radius: 4px; font-weight: 700; font-size: 0.74rem; font-family: 'JetBrains Mono', monospace;">
                     {badge_tag}
                 </span>
             </div>
-            <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.4;">
-                <b>Incident ID:</b> <code>{first_inc.get('incident_id', 'N/A')}</code> (Event <code>{first_inc.get('event_id', 'N/A')}</code>) &nbsp;|&nbsp;
+            <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.5;">
+                <b>Incident ID:</b> <code style="color: #38bdf8;">{first_inc.get('incident_id', 'N/A')}</code> (Event <code>{first_inc.get('event_id', 'N/A')}</code>) &nbsp;|&nbsp;
                 <b>Threat Level:</b> <span style="color: #f87171; font-weight: bold;">{first_inc.get('threat_level', 'UNKNOWN')} ({first_inc.get('threat_score', 0)}/100)</span> &nbsp;|&nbsp;
                 <b>Emergency Dispatch:</b> {dispatch_desc}<br/>
                 <b>Investigation Deliverables:</b> Incident report logged to Incident Command &nbsp;|&nbsp; Investigation-Support PDF Dossier compiled.
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 video_tab, interaction_tab, scenario_tab, incidents_tab, dossier_tab, calibration_tab = st.tabs(
     [
-        "📹 Video Analysis",
-        "🔍 Interaction Investigation",
-        "⚖️ Risk Scenario",
-        "🚨 Incident Command",
-        "📋 Review & Dispatch Dossier",
-        "⚙️ Calibration & Matrix",
+        "Video Analysis",
+        "Interaction Investigation",
+        "Risk Scenario Testing",
+        "Incident Command & Dispatch",
+        "Review & Forensic Dossier",
+        "Calibration & Matrix",
     ]
 )
 
@@ -1079,14 +1178,13 @@ with interaction_tab:
                 severity_meta = event_risk.get("severity", {})
                 sev_badge = severity_meta.get("badge", "🟢 NOMINAL")
                 sev_action = severity_meta.get("recommended_action", "Standard monitoring.")
-                st.markdown(
+                st.html(
                     f"""
-                    <div style="background: rgba(30, 41, 59, 0.4); border-left: 4px solid #3b82f6; padding: 8px 12px; border-radius: 4px; margin: 8px 0;">
-                        <span style="font-weight: 700; font-size: 0.95rem;">Operational Severity: {sev_badge}</span><br/>
-                        <span style="font-size: 0.85rem; opacity: 0.85;"><b>Action:</b> {sev_action}</span>
+                    <div style="background: rgba(13, 19, 34, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); padding: 10px 14px; border-radius: 8px; margin: 8px 0;">
+                        <span style="font-weight: 700; font-size: 0.92rem; color: #f8fafc;">Operational Severity: <span style="font-family: 'JetBrains Mono', monospace;">{sev_badge}</span></span><br/>
+                        <span style="font-size: 0.84rem; color: #94a3b8;"><strong style="color: #cbd5e1;">Action:</strong> {sev_action}</span>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
+                    """
                 )
 
                 if event.get("zone_context"):
@@ -1440,24 +1538,29 @@ with incidents_tab:
             }
             severity_color = severity_colors.get(level, "#9e9e9e")
 
-            st.markdown(
+            st.html(
                 f"""
                 <div style="
-                    border-left: 6px solid {severity_color};
-                    padding: 10px 14px;
-                    margin: 6px 0 10px 0;
-                    background: rgba(128,128,128,0.10);
-                    border-radius: 6px;
+                    border: 1px solid {severity_color};
+                    padding: 12px 16px;
+                    margin: 8px 0 12px 0;
+                    background: rgba(13, 19, 34, 0.85);
+                    border-radius: 8px;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
                 ">
-                    <div style="font-size: 1.05rem; font-weight: 700;">
-                        {level} — {score}/100
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 1.05rem; font-weight: 800; color: {severity_color}; font-family: 'JetBrains Mono', monospace;">
+                            {level} — {score}/100
+                        </span>
+                        <span style="background: rgba(255, 255, 255, 0.08); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; color: #94a3b8;">
+                            {current_status}
+                        </span>
                     </div>
-                    <div style="font-size: 0.9rem; opacity: 0.8;">
-                        Incident: {incident_id} · Status: {current_status}
+                    <div style="font-size: 0.84rem; color: #cbd5e1; font-family: 'JetBrains Mono', monospace;">
+                        Incident ID: <strong style="color: #38bdf8;">{incident_id}</strong>
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
             with st.expander(
@@ -1569,24 +1672,25 @@ with incidents_tab:
 
 
 with video_tab:
-    st.markdown(
-        """
+    st.html(
+        f"""
         <div style="
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(30, 41, 59, 0.6));
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(15, 23, 42, 0.85));
             border: 1px solid rgba(239, 68, 68, 0.4);
-            border-left: 6px solid #ef4444;
             border-radius: 10px;
-            padding: 14px 18px;
+            padding: 16px 20px;
             margin-bottom: 18px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
         ">
-            <h4 style="margin: 0 0 6px 0; color: #f87171;">⚡ Autonomous Accident Detection & Emergency Dispatch Hub</h4>
-            <p style="margin: 0; font-size: 0.88rem; color: #cbd5e1; line-height: 1.4;">
-                <b>Full End-to-End Automation:</b> As soon as an accident or critical collision is detected, MotionGuard automatically
-                <b>sends an emergency text alert to your phone (Telegram/SMS)</b>, <b>logs the incident</b>, and <b>generates the investigation support PDF dossier</b>.
+            <h4 style="margin: 0 0 6px 0; color: #f87171; display: flex; align-items: center; gap: 8px;">
+                {get_svg_icon('zap', size=18, color='#ef4444')} Autonomous Incident Detection & Emergency Dispatch Hub
+            </h4>
+            <p style="margin: 0; font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">
+                <strong style="color: #ffffff;">Full End-to-End Automation:</strong> As soon as an accident or critical collision is detected, MotionGuard automatically
+                <strong style="color: #f87171;">sends an emergency text alert to your phone (Telegram/SMS)</strong>, <strong>logs the incident</strong>, and <strong>generates the investigation support PDF dossier</strong>.
             </p>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     st.subheader("📹 Step 1: Select or Upload Surveillance Video")
@@ -2765,22 +2869,21 @@ with dossier_tab:
 
         with sms_c2:
             st.markdown("**Smartphone Alert Payload Preview:**")
-            st.markdown(
+            st.html(
                 f"""
                 <div style="
-                    background: #0f172a;
-                    border: 1px solid #334155;
-                    border-left: 5px solid #ef4444;
+                    background: #0b0f19;
+                    border: 1px solid rgba(239, 68, 68, 0.45);
                     border-radius: 8px;
-                    padding: 12px 16px;
-                    font-family: monospace;
+                    padding: 14px 18px;
+                    font-family: 'JetBrains Mono', monospace;
                     font-size: 0.85rem;
                     color: #f1f5f9;
                     white-space: pre-wrap;
-                    line-height: 1.4;
+                    line-height: 1.5;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
                 ">{sms_body}</div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
         if st.button(

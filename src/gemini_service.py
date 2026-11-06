@@ -55,7 +55,10 @@ load_env_file()
 
 def get_gemini_api_key() -> str:
     """Retrieve Gemini API key strictly from GEMINI_API_KEY environment variable."""
-    return os.environ.get("GEMINI_API_KEY", "").strip()
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if key.startswith("AQ.") or key.startswith("prune_"):
+        return ""
+    return key
 
 
 def test_gemini_connection(api_key: Optional[str] = None) -> Dict[str, Any]:

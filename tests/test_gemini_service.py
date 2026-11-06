@@ -24,6 +24,14 @@ def test_get_gemini_api_key_no_fallback_to_prune():
         assert get_gemini_api_key() == ""
 
 
+def test_get_gemini_api_key_rejects_prune_keys():
+    # Gemini must not accept Prune keys even if mistakenly set in GEMINI_API_KEY
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "AQ.Ab8RN6IXcmSM5ZqKp"}):
+        assert get_gemini_api_key() == ""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "prune_test_key_123"}):
+        assert get_gemini_api_key() == ""
+
+
 def test_gemini_connection_unconfigured():
     with patch.dict(os.environ, {"GEMINI_API_KEY": "", "PRUNE_API_KEY": ""}):
         result = check_gemini_connection()

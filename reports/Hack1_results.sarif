@@ -1,0 +1,529 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "offtest",
+          "semanticVersion": "0.2.0",
+          "informationUri": "https://github.com/vishalbhardwaj-source/Offline-Model-Test",
+          "rules": [
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0001",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('streamlit>=1.35.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0002",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('ultralytics>=8.2.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0003",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('opencv-python>=4.8.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0004",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('pillow>=10.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0005",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('numpy>=1.24.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0006",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('torch>=2.1.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0007",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('torchvision>=0.16.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0008",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('pandas>=2.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0009",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('pyyaml>=6.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0010",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('reportlab>=4.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0011",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('requests>=2.28.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0012",
+              "name": "Minimum Version Constraint (Unpinned Python Dependency)",
+              "shortDescription": {
+                "text": "Minimum Version Constraint (Unpinned Python Dependency)"
+              },
+              "fullDescription": {
+                "text": "Dependency specifies a minimum or range constraint ('pytest>=7.4.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0013",
+              "name": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected",
+              "shortDescription": {
+                "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected"
+              },
+              "fullDescription": {
+                "text": "File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0014",
+              "name": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected",
+              "shortDescription": {
+                "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected"
+              },
+              "fullDescription": {
+                "text": "File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0015",
+              "name": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected",
+              "shortDescription": {
+                "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected"
+              },
+              "fullDescription": {
+                "text": "File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0001",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('streamlit>=1.35.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 5: streamlit>=1.35.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. streamlit==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0002",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('ultralytics>=8.2.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 8: ultralytics>=8.2.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. ultralytics==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0003",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('opencv-python>=4.8.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 9: opencv-python>=4.8.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. opencv-python==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0004",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('pillow>=10.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 10: pillow>=10.0.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. pillow==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0005",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('numpy>=1.24.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 11: numpy>=1.24.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. numpy==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 11,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0006",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('torch>=2.1.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 14: torch>=2.1.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. torch==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0007",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('torchvision>=0.16.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 15: torchvision>=0.16.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. torchvision==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0008",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('pandas>=2.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 18: pandas>=2.0.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. pandas==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0009",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('pyyaml>=6.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 21: pyyaml>=6.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. pyyaml==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0010",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('reportlab>=4.0.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 24: reportlab>=4.0.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. reportlab==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 24,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0011",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('requests>=2.28.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 27: requests>=2.28.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. requests==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 27,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-DEPENDENCY-PIN-CHECKER-FIND-0012",
+          "level": "note",
+          "message": {
+            "text": "Minimum Version Constraint (Unpinned Python Dependency): Dependency specifies a minimum or range constraint ('pytest>=7.4.0') rather than an exact pinned version ('=='). While standard during local development, unpinned builds can pull unexpected upstream changes and cause non-deterministic offline environments.\n\nEvidence:\nLine 30: pytest>=7.4.0\n\nSuggested Action: Pin exact version in requirements.txt (e.g. pytest==x.y.z) for deterministic offline builds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0013",
+          "level": "note",
+          "message": {
+            "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected: File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters.\n\nEvidence:\nLine 1: File starts with 3-byte UTF-8 BOM sequence (0xEF 0xBB 0xBF)\n\nSuggested Action: Re-save file as standard UTF-8 without BOM to ensure universal cross-platform and linter compatibility."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/clean_stale_evidence.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0014",
+          "level": "note",
+          "message": {
+            "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected: File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters.\n\nEvidence:\nLine 1: File starts with 3-byte UTF-8 BOM sequence (0xEF 0xBB 0xBF)\n\nSuggested Action: Re-save file as standard UTF-8 without BOM to ensure universal cross-platform and linter compatibility."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/trajectory_analysis.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OFFTEST-FILE-ENCODING-CHECKER-FIND-0015",
+          "level": "note",
+          "message": {
+            "text": "Non-Standard UTF-8 BOM (Byte Order Mark) Detected: File begins with a UTF-8 Byte Order Mark (0xEF 0xBB 0xBF / U+FEFF). While standard Python runtimes strip the BOM automatically when running files from disk, strict CI linters, non-Windows compilers, or string-based AST parsers may flag or mishandle BOM characters.\n\nEvidence:\nLine 1: File starts with 3-byte UTF-8 BOM sequence (0xEF 0xBB 0xBF)\n\nSuggested Action: Re-save file as standard UTF-8 without BOM to ensure universal cross-platform and linter compatibility."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/test_event_evidence.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
